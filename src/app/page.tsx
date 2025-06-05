@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon } from 'lucide-react';
+import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,16 +25,16 @@ declare global {
 export default function JarvisPage() {
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
-  const [finalTranscript, setFinalTranscript] = useState(''); 
-  const finalTranscriptRef = useRef(''); 
-  
+  const [finalTranscript, setFinalTranscript] = useState('');
+  const finalTranscriptRef = useRef('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [initialEmailIntention, setInitialEmailIntention] = useState('');
 
   const [commandResult, setCommandResult] = useState<ProcessVoiceCommandOutput | HandleComposeEmailOutput | null>(null);
   const [speechSupport, setSpeechSupport] = useState<'pending' | 'supported' | 'unsupported'>('pending');
-  
+
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const startSoundRef = useRef<HTMLAudioElement | null>(null);
   const stopSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -68,10 +68,10 @@ export default function JarvisPage() {
       setIsLoading(false);
       return;
     }
-    
+
     setCommandResult(null);
     setIsLoading(true);
-    setFinalTranscript(text); 
+    setFinalTranscript(text);
 
     try {
       const result = await processVoiceCommand(text);
@@ -119,7 +119,7 @@ export default function JarvisPage() {
       setSpeechSupport('unsupported');
       return;
     }
-    
+
     try {
       startSoundRef.current = new Audio('/sounds/start-listening.mp3');
       stopSoundRef.current = new Audio('/sounds/stop-listening.mp3');
@@ -133,7 +133,7 @@ export default function JarvisPage() {
     if (!SpeechRecognitionAPI) {
       setSpeechSupport('unsupported');
       const errorMsg = "Your browser doesn't support Speech Recognition. Try Chrome or Edge.";
-      speakText("Speech recognition is not supported on this browser."); 
+      speakText("Speech recognition is not supported on this browser.");
       toast({
         title: "Voice Input Not Supported",
         description: errorMsg,
@@ -146,16 +146,16 @@ export default function JarvisPage() {
     setSpeechSupport('supported');
     const recognition = new SpeechRecognitionAPI();
     speechRecognitionRef.current = recognition;
-    
-    recognition.continuous = false; 
+
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsListening(true);
-      setCurrentTranscript(''); 
-      finalTranscriptRef.current = ''; 
-      setCommandResult(null); 
+      setCurrentTranscript('');
+      finalTranscriptRef.current = '';
+      setCommandResult(null);
       setIsLoading(false);
       startSoundRef.current?.play().catch(e => console.error("Error playing start sound:", e));
     };
@@ -166,32 +166,35 @@ export default function JarvisPage() {
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         const transcriptPart = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalUtterance += transcriptPart; 
+          finalUtterance += transcriptPart;
         } else {
           interim += transcriptPart;
         }
       }
-      setCurrentTranscript(interim); 
+      setCurrentTranscript(interim);
       if (finalUtterance) {
-        finalTranscriptRef.current = finalUtterance.trim(); 
+        finalTranscriptRef.current = finalUtterance.trim();
       }
     };
-    
+
     recognition.onend = () => {
-      setIsListening(false); 
+      setIsListening(false);
       stopSoundRef.current?.play().catch(e => console.error("Error playing stop sound:", e));
       const transcriptToProcess = finalTranscriptRef.current.trim();
       if (transcriptToProcess) {
         processFinalTranscript(transcriptToProcess);
       } else {
-        if (!isLoading && !currentTranscript && speechRecognitionRef.current?.onerror === null) {
-            // No final transcript and no apparent error yet, might be 'no-speech' if caught by onerror
+        // If speechRecognitionRef.current.onerror was called for 'no-speech', it handles the toast.
+        // Otherwise, if it ended with no final transcript and no error, it might be a quick stop.
+        if (!isLoading && !currentTranscript && speechRecognitionRef.current && (speechRecognitionRef.current as any)._error !== 'no-speech') {
+          // Do nothing specific if stopped quickly without speech, unless specific UX is desired
         }
-        setIsLoading(false); 
+        setIsLoading(false);
       }
     };
 
     recognition.onerror = (event) => {
+      (speechRecognitionRef.current as any)._error = event.error; // Track error for onend logic
       let description = "An error occurred during speech recognition.";
       let title = "Speech Recognition Error";
       let toastVariant: "default" | "destructive" = "destructive";
@@ -210,14 +213,14 @@ export default function JarvisPage() {
         console.error(`Unexpected speech recognition error: ${event.error}. Event:`, event);
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
-      
+
       speakText(description);
       toast({
         title: title,
         description: description,
         variant: toastVariant,
       });
-      
+
       setIsListening(false);
       setIsLoading(false);
       stopSoundRef.current?.play().catch(e => console.error("Error playing stop sound on error:", e));
@@ -229,13 +232,13 @@ export default function JarvisPage() {
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onend = null;
         speechRecognitionRef.current.onerror = null;
-        speechRecognitionRef.current.stop(); 
+        speechRecognitionRef.current.stop();
       }
       if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel(); 
+        window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText]); 
+  }, [toast, processFinalTranscript, speakText]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -247,9 +250,10 @@ export default function JarvisPage() {
 
     const recognition = speechRecognitionRef.current;
     if (isListening) {
-      recognition.stop(); 
+      recognition.stop();
     } else {
-      resetState(); 
+      resetState();
+      (recognition as any)._error = null; // Reset error state before starting
       try {
         recognition.start();
       } catch (error) {
@@ -260,7 +264,7 @@ export default function JarvisPage() {
         }
         speakText(msg);
         toast({ title: "Recognition Error", description: msg, variant: "destructive" });
-        setIsListening(false); 
+        setIsListening(false);
       }
     }
   };
@@ -301,6 +305,34 @@ export default function JarvisPage() {
       speakText("Failed to copy content.");
     });
   };
+
+  const handleDownloadImage = (imageDataUri: string, prompt: string) => {
+    if (!imageDataUri) {
+      toast({ title: "Download Failed", description: "Image data is not available.", variant: "destructive" });
+      speakText("Image data is not available for download.");
+      return;
+    }
+    try {
+      const link = document.createElement('a');
+      link.href = imageDataUri;
+      
+      // Create a filename from the prompt, or use a default
+      let filename = prompt ? prompt.replace(/[^a-z0-9_]+/gi, '_').substring(0, 50) : 'jarvis_generated_image';
+      filename = `${filename || 'jarvis_generated_image'}.png`; // Ensure .png extension and fallback
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: "Image Download Started", description: `Downloading ${filename}` });
+      speakText("Image download started.");
+    } catch (error) {
+      console.error("Failed to download image: ", error);
+      toast({ title: "Download Failed", description: "Could not initiate image download.", variant: "destructive" });
+      speakText("Failed to download image.");
+    }
+  };
+
 
   const renderCommandResult = () => {
     if (!commandResult) return null;
@@ -375,11 +407,11 @@ export default function JarvisPage() {
             </CardHeader>
             <CardContent className="flex justify-center items-center">
               {commandResult.imageDataUri ? (
-                <Image 
-                  src={commandResult.imageDataUri} 
-                  alt={`Generated image for prompt: ${commandResult.prompt}`} 
-                  width={512} 
-                  height={512} 
+                <Image
+                  src={commandResult.imageDataUri}
+                  alt={`Generated image for prompt: ${commandResult.prompt}`}
+                  width={512}
+                  height={512}
                   className="rounded-md shadow-lg"
                   data-ai-hint="generated art"
                 />
@@ -387,8 +419,11 @@ export default function JarvisPage() {
                 <p>Image could not be displayed.</p>
               )}
             </CardContent>
-             <CardFooter>
+             <CardFooter className="flex justify-between items-center">
               <p className="text-xs text-muted-foreground">Image generated by Gemini.</p>
+              <Button onClick={() => handleDownloadImage(commandResult.imageDataUri, commandResult.prompt)} variant="outline" size="sm">
+                <DownloadIcon className="mr-2 h-4 w-4" /> Download Image
+              </Button>
             </CardFooter>
           </Card>
         );
@@ -428,19 +463,19 @@ export default function JarvisPage() {
       </header>
 
       <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
-        <Mic 
+        <Mic
             className={`
-                ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'} 
+                ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
                 transition-colors duration-300
-            `} 
-            size={80} 
+            `}
+            size={80}
             strokeWidth={1.5}
             data-ai-hint="microphone sound"
         />
       </div>
-      
-      <Button 
-        onClick={handleToggleListen} 
+
+      <Button
+        onClick={handleToggleListen}
         className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
         variant={isListening ? "destructive" : "default"}
         disabled={speechSupport !== 'supported' || isLoading}
@@ -451,11 +486,11 @@ export default function JarvisPage() {
 
       {isLoading && (
         <div className="flex items-center space-x-2 text-primary">
-          <Loader2 className="animate-spin h-6 w-6" /> 
+          <Loader2 className="animate-spin h-6 w-6" />
           <span>Processing your request...</span>
         </div>
       )}
-      
+
       {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
         <Card className="w-full max-w-md">
           <CardHeader>
@@ -475,10 +510,10 @@ export default function JarvisPage() {
             {renderCommandResult()}
         </div>
       )}
-      
+
       {speechSupport === 'pending' && !isLoading && (
          <div className="flex items-center space-x-2 text-primary mt-4">
-           <Loader2 className="animate-spin h-6 w-6" /> 
+           <Loader2 className="animate-spin h-6 w-6" />
            <span>Checking voice support...</span>
          </div>
        )}
@@ -493,9 +528,9 @@ export default function JarvisPage() {
           </Card>
       )}
 
-      <EmailDialog 
-        open={showEmailDialog} 
-        onOpenChange={setShowEmailDialog} 
+      <EmailDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
         onSubmit={handleEmailDialogSubmit}
         initialIntention={initialEmailIntention}
       />
@@ -503,3 +538,5 @@ export default function JarvisPage() {
     </div>
   );
 }
+
+    
