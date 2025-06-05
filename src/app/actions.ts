@@ -14,6 +14,7 @@ export type ProcessVoiceCommandOutput =
   | { type: 'youtubeSearch'; query: string }
   | { type: 'geminiSearch'; query: string; result: string }
   | { type: 'imageGenerated'; imageDataUri: string; prompt: string }
+  | { type: 'mapsSearch'; query: string }
   | { type: 'unknown'; message: string; transcript: string }
   | { type: 'error'; message: string };
 
@@ -44,6 +45,7 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
      }
   }
 
+  // YouTube Search
   if (lowerTranscript.includes('youtube') && (lowerTranscript.includes('search') || lowerTranscript.includes('find') || lowerTranscript.includes('look up'))) {
     let query = lowerTranscript;
     const patterns = [
@@ -68,7 +70,40 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
     }
   }
 
-  // Image Generation - "create an image of X", "generate a picture of Y"
+  // Google Maps Search
+  const mapKeywords = [
+    'search for (.+) on maps?',
+    'find (.+) on (?:google )?maps?',
+    'where is (.+)',
+    'show me (.+) on the map',
+    'map of (.+)',
+    'navigate to (.+)',
+    'directions to (.+)'
+  ];
+
+  for (const keywordPattern of mapKeywords) {
+    const regex = new RegExp(keywordPattern, 'i');
+    const match = lowerTranscript.match(regex);
+    if (match && match[1]) {
+      const query = match[1].trim();
+      if (query) {
+        return { type: 'mapsSearch', query };
+      }
+    }
+  }
+  // A more general "maps" command if it includes "map" or "maps" and some query
+   if (lowerTranscript.includes(' map') || lowerTranscript.includes(' maps')) {
+    let query = transcript;
+    // Attempt to extract query by removing common map-related phrases if specific patterns didn't catch it
+    query = query.replace(/search for|find|where is|show me|on the map|on maps|on google maps|map of|navigate to|directions to/gi, "").trim();
+    query = query.replace(/maps?$/i, "").trim(); // Remove 'map' or 'maps' from the end
+    if (query) {
+      return { type: 'mapsSearch', query };
+    }
+  }
+
+
+  // Image Generation
   const imageKeywords = [
     'create an image of', 'create a image of',
     'generate an image of', 'generate a image of',
@@ -97,10 +132,13 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
   }
 
   // Gemini Search - Catches "search for", "what is", "tell me about" etc.
-  // This should be evaluated after more specific commands like image generation.
   const searchKeywords = ['search for', 'what is', 'what are', 'tell me about', 'who is', 'who are', 'explain', 'define'];
   for (const keyword of searchKeywords) {
     if (lowerTranscript.startsWith(keyword + ' ')) {
+      // Ensure this is not a map search query being misidentified
+      if (mapKeywords.some(mapKeyword => lowerTranscript.match(new RegExp(mapKeyword.replace('(.+)', keyword + ' (.+)'))))) {
+        continue;
+      }
       const query = transcript.substring(keyword.length + 1).trim();
       if (query) {
         try {
@@ -113,19 +151,24 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
       }
     }
   }
-  
+
   // A more general "search" or "find" command as a fallback if no specific keywords like "what is" were used
   if (lowerTranscript.startsWith('search ') || lowerTranscript.startsWith('find ')) {
-    const query = transcript.substring(transcript.indexOf(' ') + 1).trim();
-     if (query) {
-        try {
-          const result = await searchWithGemini({ query });
-          return { type: 'geminiSearch', query, result: result.searchResult };
-        } catch (error) {
-          console.error("Error with general Gemini search:", error);
-          return { type: 'error', message: `Failed to search for "${query}".` };
+    // Ensure this is not a map search query being misidentified
+     if (mapKeywords.some(mapKeyword => lowerTranscript.match(new RegExp(mapKeyword.replace('(.+)', transcript.substring(transcript.indexOf(' ') + 1).trim()))))) {
+        // Handled by map search
+     } else {
+        const query = transcript.substring(transcript.indexOf(' ') + 1).trim();
+        if (query) {
+            try {
+            const result = await searchWithGemini({ query });
+            return { type: 'geminiSearch', query, result: result.searchResult };
+            } catch (error) {
+            console.error("Error with general Gemini search:", error);
+            return { type: 'error', message: `Failed to search for "${query}".` };
+            }
         }
-      }
+     }
   }
 
 

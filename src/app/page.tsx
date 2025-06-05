@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon } from 'lucide-react';
+import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -85,6 +85,10 @@ export default function JarvisPage() {
         speakText(`Searching YouTube for ${result.query}.`);
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "YouTube Search", description: `Searching for "${result.query}" on YouTube.` });
+      } else if (result.type === 'mapsSearch') {
+        speakText(`Searching for ${result.query} on Google Maps.`);
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.query)}`, '_blank');
+        toast({ title: "Google Maps Search", description: `Searching for "${result.query}" on Google Maps.` });
       } else if (result.type === 'googleDoc') {
          speakText(`Document content generated for topic: ${result.topic}. Opening a new Google Doc. Please copy the content and paste it into the new document.`);
          window.open('https://docs.new', '_blank');
@@ -316,9 +320,8 @@ export default function JarvisPage() {
       const link = document.createElement('a');
       link.href = imageDataUri;
       
-      // Create a filename from the prompt, or use a default
       let filename = prompt ? prompt.replace(/[^a-z0-9_]+/gi, '_').substring(0, 50) : 'jarvis_generated_image';
-      filename = `${filename || 'jarvis_generated_image'}.png`; // Ensure .png extension and fallback
+      filename = `${filename || 'jarvis_generated_image'}.png`; 
       
       link.download = filename;
       document.body.appendChild(link);
@@ -380,6 +383,18 @@ export default function JarvisPage() {
             <CardContent>
               <p>Searching YouTube for: <span className="font-semibold">{commandResult.query}</span></p>
               <p className="text-sm text-muted-foreground">A new tab should have opened with the search results.</p>
+            </CardContent>
+          </Card>
+        );
+      case 'mapsSearch':
+        return (
+          <Card className="w-full max-w-md">
+            <CardHeader>
+                <CardTitle className="flex items-center"><MapPin className="mr-2 h-6 w-6 text-green-600" />Google Maps Search</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Searching Google Maps for: <span className="font-semibold">{commandResult.query}</span></p>
+              <p className="text-sm text-muted-foreground">A new tab should have opened with the map results.</p>
             </CardContent>
           </Card>
         );
