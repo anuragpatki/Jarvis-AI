@@ -386,7 +386,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     switch (commandResult.type) {
       case 'googleDoc':
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full"> {/* max-w-2xl was here, removed for parent to control width */}
             <CardHeader>
               <CardTitle className="flex items-center"><FileTextIcon className="mr-2 h-6 w-6 text-primary" />Generated Document Content</CardTitle>
               <CardDescription>Topic: {commandResult.topic}. A new Google Doc has opened. Copy the content below and paste it there.</CardDescription>
@@ -404,7 +404,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'emailDraft':
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full"> {/* max-w-2xl was here */}
             <CardHeader>
               <CardTitle className="flex items-center"><MailIcon className="mr-2 h-6 w-6 text-primary" />Generated Email Draft</CardTitle>
               <CardDescription>A Gmail compose window has been opened with this draft.</CardDescription>
@@ -419,7 +419,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'youtubeSearch':
         return (
-          <Card className="w-full max-w-md">
+          <Card className="w-full"> {/* max-w-md was here */}
             <CardHeader>
                 <CardTitle className="flex items-center"><YoutubeIcon className="mr-2 h-6 w-6 text-red-600" />YouTube Search</CardTitle>
             </CardHeader>
@@ -431,7 +431,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'mapsSearch':
         return (
-          <Card className="w-full max-w-md">
+          <Card className="w-full"> {/* max-w-md was here */}
             <CardHeader>
                 <CardTitle className="flex items-center"><MapPin className="mr-2 h-6 w-6 text-green-600" />Google Maps Search</CardTitle>
             </CardHeader>
@@ -443,7 +443,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'openWebsiteSearch':
         return (
-          <Card className="w-full max-w-md">
+          <Card className="w-full"> {/* max-w-md was here */}
             <CardHeader>
                 <CardTitle className="flex items-center"><Globe className="mr-2 h-6 w-6 text-blue-500" />Open / Search</CardTitle>
             </CardHeader>
@@ -455,7 +455,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'geminiSearch':
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full"> {/* max-w-2xl was here */}
             <CardHeader>
               <CardTitle className="flex items-center"><SearchIcon className="mr-2 h-6 w-6 text-primary" />Search Result</CardTitle>
               <CardDescription>Query: "{commandResult.query}"</CardDescription>
@@ -470,7 +470,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'imageGenerated':
         return (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full"> {/* max-w-2xl was here */}
             <CardHeader>
               <CardTitle className="flex items-center"><ImageIcon className="mr-2 h-6 w-6 text-primary" />Generated Image</CardTitle>
               <CardDescription>Prompt: "{commandResult.prompt}"</CardDescription>
@@ -499,7 +499,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'unknown':
         return (
-          <Card className="w-full max-w-md border-orange-500/50">
+          <Card className="w-full border-orange-500/50"> {/* max-w-md was here */}
             <CardHeader>
               <CardTitle className="flex items-center"><InfoIcon className="mr-2 h-6 w-6 text-orange-500" />Request Not Understood</CardTitle>
             </CardHeader>
@@ -511,7 +511,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'error':
         return (
-          <Card className="w-full max-w-md border-destructive/50">
+          <Card className="w-full border-destructive/50"> {/* max-w-md was here */}
              <CardHeader>
               <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Error</CardTitle>
             </CardHeader>
@@ -529,92 +529,98 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     <div className="flex h-screen bg-background font-body">
       <AppSidebar />
       <SidebarInset>
-        <div className="relative flex flex-col flex-grow w-full h-full overflow-hidden">
-          {/* Sidebar Trigger (Burger Menu) */}
+        {/* PARENT A: Primary container inside SidebarInset. Handles burger menu positioning and overall flex structure. */}
+        <div className="relative flex flex-col w-full h-full">
+          {/* Burger Menu Trigger - Absolutely positioned relative to PARENT A */}
           <div className="absolute top-4 left-4 z-20">
             <SidebarTrigger>
                 <Menu />
             </SidebarTrigger>
           </div>
 
-          {/* Scrollable and Centered Content Area */}
-          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6 w-full">
+          {/* PARENT B: Scrollable Area. Takes remaining vertical space and provides padding. */}
+          {/* It is w-full of PARENT A. */}
+          <div className="flex-1 overflow-y-auto p-6 pt-16 md:pt-6 w-full">
             
-            {/* Inner container for main content elements, responsible for its own centering and max-width */}
-            <div className="w-full max-w-3xl flex flex-col items-center space-y-6">
-              <header className="text-center">
-                <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
-                <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
-              </header>
+            {/* PARENT C: Content Block to be centered using mx-auto. */}
+            {/* This block has a max-width and contains all the Jarvis UI elements. */}
+            <div className="w-full max-w-3xl mx-auto">
+              {/* Inner wrapper for actual UI elements, using flex to center its own children. */}
+              <div className="flex flex-col items-center space-y-6">
+                <header className="text-center">
+                  <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
+                  <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
+                </header>
 
-              <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
-                <Mic
-                    className={`
-                        ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
-                        transition-colors duration-300
-                    `}
-                    size={80}
-                    strokeWidth={1.5}
-                    data-ai-hint="microphone sound"
-                />
-              </div>
-
-              <Button
-                onClick={handleToggleListen}
-                className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
-                variant={isListening ? "destructive" : "default"}
-                disabled={speechSupport !== 'supported' || isLoading}
-              >
-                {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
-                {isListening ? 'Stop Listening' : 'Start Listening'}
-              </Button>
-
-              {isLoading && (
-                <div className="flex items-center space-x-2 text-primary">
-                  <Loader2 className="animate-spin h-6 w-6" />
-                  <span>Processing your request...</span>
+                <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
+                  <Mic
+                      className={`
+                          ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
+                          transition-colors duration-300
+                      `}
+                      size={80}
+                      strokeWidth={1.5}
+                      data-ai-hint="microphone sound"
+                  />
                 </div>
-              )}
 
-              {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
-                <Card className="w-full max-w-md">
-                  <CardHeader>
-                    <CardTitle>Transcript</CardTitle>
-                    <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
-                    {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
-                    {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
-                  </CardContent>
-                </Card>
-              )}
+                <Button
+                  onClick={handleToggleListen}
+                  className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+                  variant={isListening ? "destructive" : "default"}
+                  disabled={speechSupport !== 'supported' || isLoading}
+                >
+                  {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
+                  {isListening ? 'Stop Listening' : 'Start Listening'}
+                </Button>
 
-              {commandResult && (
-                 <div className="w-full max-w-2xl mt-4 animate-in fade-in duration-500">
-                    {renderCommandResult()}
-                </div>
-              )}
+                {isLoading && (
+                  <div className="flex items-center space-x-2 text-primary">
+                    <Loader2 className="animate-spin h-6 w-6" />
+                    <span>Processing your request...</span>
+                  </div>
+                )}
 
-              {speechSupport === 'pending' && !isLoading && (
-                 <div className="flex items-center space-x-2 text-primary mt-4">
-                   <Loader2 className="animate-spin h-6 w-6" />
-                   <span>Checking voice support...</span>
-                 </div>
-               )}
-              {speechSupport === 'unsupported' && (
-                 <Card className="w-full max-w-md border-destructive/50 mt-4">
-                     <CardHeader>
-                      <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+                {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
+                  <Card className="w-full"> {/* max-w-md removed, PARENT C controls width */}
+                    <CardHeader>
+                      <CardTitle>Transcript</CardTitle>
+                      <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+                      {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
+                      {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
+                      {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
                     </CardContent>
                   </Card>
-              )}
-            </div> {/* End of inner container for main content elements */}
-          </div> {/* End of scrollable/centered content area */}
-        </div> {/* End of main container in SidebarInset */}
+                )}
+
+                {commandResult && (
+                   <div className="w-full mt-4 animate-in fade-in duration-500"> {/* PARENT C controls width */}
+                      {renderCommandResult()}
+                  </div>
+                )}
+
+                {speechSupport === 'pending' && !isLoading && (
+                   <div className="flex items-center space-x-2 text-primary mt-4">
+                     <Loader2 className="animate-spin h-6 w-6" />
+                     <span>Checking voice support...</span>
+                   </div>
+                 )}
+                {speechSupport === 'unsupported' && (
+                   <Card className="w-full border-destructive/50 mt-4"> {/* max-w-md removed */}
+                       <CardHeader>
+                        <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+                      </CardContent>
+                    </Card>
+                )}
+              </div> {/* End of PARENT C's inner flex wrapper */}
+            </div> {/* End of PARENT C: max-w-3xl mx-auto */}
+          </div> {/* End of PARENT B: Scrollable area */}
+        </div> {/* End of PARENT A: Primary container inside SidebarInset */}
         
         <EmailDialog
           open={showEmailDialog}
@@ -626,4 +632,3 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     </div>
   );
 }
-
