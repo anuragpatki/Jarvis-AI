@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 'use client';
 
@@ -8,8 +9,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Textarea } from '@/components/ui/textarea';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
-import { processVoiceCommand, handleComposeEmail, type EmailFormData, type ProcessVoiceCommandOutput, type HandleComposeEmailOutput } from './actions';
+import { processVoiceCommand, handleComposeEmail, type ProcessVoiceCommandOutput, type HandleComposeEmailOutput } from './actions';
 import EmailDialog from '@/components/jarvis/email-dialog';
+import type { EmailFormData } from '@/lib/schemas';
+
 
 declare global {
   interface Window {
@@ -22,36 +25,46 @@ export default function JarvisPage() {
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
+  const finalTranscriptRef = useRef('');
   
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [initialEmailIntention, setInitialEmailIntention] = useState('');
 
   const [commandResult, setCommandResult] = useState<ProcessVoiceCommandOutput | HandleComposeEmailOutput | null>(null);
+  const [speechSupport, setSpeechSupport] = useState<'pending' | 'supported' | 'unsupported'>('pending');
   
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
     setCurrentTranscript('');
     setFinalTranscript('');
+    finalTranscriptRef.current = '';
     setCommandResult(null);
     setIsLoading(false);
-  };
+  }, []);
 
   const processFinalTranscript = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      setIsLoading(false); // Ensure loading is false if nothing to process
+      return;
+    }
     
-    resetState();
-    setFinalTranscript(text);
+    // Don't call full resetState here as it clears finalTranscript which we might want to display
+    // Instead, manage specific states for processing
+    setCommandResult(null); // Clear previous results
     setIsLoading(true);
+    // Set finalTranscript here to display what is being processed
+    setFinalTranscript(text);
+
 
     try {
       const result = await processVoiceCommand(text);
       setCommandResult(result);
 
       if (result.type === 'emailComposeIntent') {
-        setInitialEmailIntention(text); // Pre-fill intention with the command
+        setInitialEmailIntention(text);
         setShowEmailDialog(true);
       } else if (result.type === 'youtubeSearch') {
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
@@ -63,67 +76,87 @@ export default function JarvisPage() {
       } else if (result.type === 'error') {
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
-
     } catch (error) {
       console.error("Error processing voice command:", error);
       toast({ title: "Processing Error", description: "An unexpected error occurred.", variant: "destructive" });
       setCommandResult({type: 'error', message: 'An unexpected error occurred while processing.'});
     } finally {
       setIsLoading(false);
+       // Clear transcripts after processing is done and result is set
+      setCurrentTranscript('');
+      setFinalTranscript('');
+      finalTranscriptRef.current = '';
     }
-  }, [toast]);
+  }, [toast, setInitialEmailIntention, setShowEmailDialog]);
 
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    // This effect runs once on the client to set up speech recognition
+    if (typeof window === 'undefined') {
+      return; // Should not run on server
+    }
 
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
+      setSpeechSupport('unsupported');
       toast({
         title: "Voice Input Not Supported",
         description: "Your browser doesn't support Speech Recognition. Try Chrome or Edge.",
         variant: "destructive",
-        duration: Infinity,
+        duration: 5000, // 5 seconds
       });
       return;
     }
 
+    setSpeechSupport('supported');
     const recognition = new SpeechRecognitionAPI();
+    speechRecognitionRef.current = recognition;
+    
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsListening(true);
-      resetState();
+      // Reset relevant states for a new listening session
+      setCurrentTranscript('');
+      setFinalTranscript('');
+      finalTranscriptRef.current = '';
+      setCommandResult(null);
+      setIsLoading(false); // Ensure loading is false when starting
     };
 
     recognition.onresult = (event) => {
       let interim = '';
-      let final = '';
+      let finalSegment = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
+          finalSegment += event.results[i][0].transcript;
         } else {
           interim += event.results[i][0].transcript;
         }
       }
       setCurrentTranscript(interim);
-      if (final) {
-        setFinalTranscript(prevFinal => prevFinal + final); // Append final results
-        // Debounce or wait for a pause before processing
+      if (finalSegment) {
+        const trimmedSegment = finalSegment.trim();
+        if (trimmedSegment) {
+          finalTranscriptRef.current += trimmedSegment + ' ';
+          setFinalTranscript(prev => (prev + trimmedSegment + ' ').trim());
+        }
       }
     };
     
     recognition.onend = () => {
       setIsListening(false);
-      if (finalTranscript.trim() || currentTranscript.trim()) { // Process if there's any transcript
-        processFinalTranscript(finalTranscript.trim() || currentTranscript.trim());
+      const transcriptToProcess = finalTranscriptRef.current.trim();
+      if (transcriptToProcess) {
+        processFinalTranscript(transcriptToProcess);
+      } else if (currentTranscript.trim()) { // Process interim if final is empty (e.g. quick stop)
+        processFinalTranscript(currentTranscript.trim());
+      } else {
+        // If nothing to process, ensure loading is false
+        setIsLoading(false);
       }
-      // Automatically restart if was listening and not stopped manually (optional)
-      // if (speechRecognitionRef.current && isListening) {
-      // speechRecognitionRef.current.start();
-      // }
     };
 
     recognition.onerror = (event) => {
@@ -134,28 +167,35 @@ export default function JarvisPage() {
         variant: "destructive",
       });
       setIsListening(false);
+      // Consider if speechSupport should change, but API itself was present.
     };
-
-    speechRecognitionRef.current = recognition;
 
     return () => {
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
+        speechRecognitionRef.current.onstart = null;
+        speechRecognitionRef.current.onresult = null;
+        speechRecognitionRef.current.onend = null;
+        speechRecognitionRef.current.onerror = null;
       }
     };
-  }, [toast, processFinalTranscript, finalTranscript, currentTranscript]); // Added finalTranscript and currentTranscript to dependencies
+  }, [toast, processFinalTranscript, currentTranscript]); // currentTranscript added to allow onend to process it if final is empty
 
   const handleToggleListen = () => {
-    if (!speechRecognitionRef.current) {
-      toast({ title: "Voice input not available", description: "Speech recognition is not initialized.", variant: "destructive"});
+    if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
+      toast({ title: "Voice input not available", description: "Speech recognition is not initialized or not supported.", variant: "destructive"});
       return;
     }
     if (isListening) {
-      speechRecognitionRef.current.stop();
+      speechRecognitionRef.current.stop(); // This will trigger onend
     } else {
-      resetState(); // Clear previous state before starting new recognition
-      setFinalTranscript(''); // Explicitly clear final transcript for new session
-      speechRecognitionRef.current.start();
+      // Explicitly clear previous session data before starting a new one
+      setCurrentTranscript('');
+      setFinalTranscript('');
+      finalTranscriptRef.current = '';
+      setCommandResult(null);
+      setIsLoading(false);
+      speechRecognitionRef.current.start(); // This will trigger onstart
     }
   };
 
@@ -209,7 +249,7 @@ export default function JarvisPage() {
             </CardFooter>
           </Card>
         );
-      case 'youtubeSearch': // This is handled by window.open, but we can show a confirmation
+      case 'youtubeSearch':
         return (
           <Card className="w-full max-w-md">
             <CardHeader>
@@ -272,7 +312,7 @@ export default function JarvisPage() {
         onClick={handleToggleListen} 
         className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
         variant={isListening ? "destructive" : "default"}
-        disabled={!speechRecognitionRef.current && typeof window !== 'undefined'} // Disable if API not supported
+        disabled={speechSupport !== 'supported' || isLoading}
       >
         {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
         {isListening ? 'Stop Listening' : 'Start Listening'}
@@ -285,7 +325,7 @@ export default function JarvisPage() {
         </div>
       )}
       
-      {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
+      {speechSupport === 'supported' && (currentTranscript || finalTranscript) && !commandResult && !isLoading && (
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Transcript</CardTitle>
@@ -304,7 +344,13 @@ export default function JarvisPage() {
         </div>
       )}
       
-      {!speechRecognitionRef.current && typeof window !== 'undefined' && (
+      {speechSupport === 'pending' && !isLoading && (
+         <div className="flex items-center space-x-2 text-primary mt-4">
+           <Loader2 className="animate-spin h-6 w-6" /> 
+           <span>Checking voice support...</span>
+         </div>
+       )}
+      {speechSupport === 'unsupported' && (
          <Card className="w-full max-w-md border-destructive/50 mt-4">
              <CardHeader>
               <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
@@ -314,7 +360,6 @@ export default function JarvisPage() {
             </CardContent>
           </Card>
       )}
-
 
       <EmailDialog 
         open={showEmailDialog} 
