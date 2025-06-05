@@ -14,7 +14,7 @@ import EmailDialog from '@/components/jarvis/email-dialog';
 import type { EmailFormData } from '@/lib/schemas';
 import Image from 'next/image';
 import AppSidebar from '@/components/jarvis/AppSidebar';
-import { SidebarInset, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { useHistory } from '@/hooks/useHistory';
 
 
@@ -43,7 +43,6 @@ export default function JarvisPage() {
   const stopSoundRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const { addHistoryItem } = useHistory();
-  // const { isMobile } = useSidebar(); // isMobile can be removed if not directly used for className logic here
 
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -82,13 +81,13 @@ export default function JarvisPage() {
     try {
       const result = await processVoiceCommand(text);
       setCommandResult(result);
-      historyEntry.actionType = result.type; // Update actionType from result
+      historyEntry.actionType = result.type; 
 
       if (result.type === 'emailComposeIntent') {
         speakText("Please provide email details.");
         setInitialEmailIntention(text);
         setShowEmailDialog(true);
-         historyEntry.query = text; // Capture intention as query for history
+         historyEntry.query = text; 
       } else if (result.type === 'youtubeSearch') {
         speakText(`Searching YouTube for ${result.query}.`);
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
@@ -120,20 +119,19 @@ export default function JarvisPage() {
       } else if (result.type === 'unknown') {
         speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
-         historyEntry.transcript = result.transcript; // Use the transcript from the result
+         historyEntry.transcript = result.transcript; 
       } else if (result.type === 'error') {
         speakText(`An error occurred: ${result.message}`);
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
       
-      // Ensure all relevant fields are populated for the history entry
       if (result.type && result.type !== 'processing') {
         if ('query' in result && result.query) historyEntry.query = result.query;
         if ('topic' in result && result.topic) historyEntry.topic = result.topic;
         if ('prompt' in result && result.prompt) historyEntry.prompt = result.prompt;
-        if ('transcript' in result && result.transcript && result.type === 'unknown') historyEntry.transcript = result.transcript; // Ensure unknown transcript is set
-        addHistoryItem(historyEntry);
+        if ('transcript' in result && result.transcript && result.type === 'unknown') historyEntry.transcript = result.transcript; 
       }
+      addHistoryItem(historyEntry);
 
 
     } catch (error) {
@@ -273,7 +271,7 @@ export default function JarvisPage() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText]); // Removed addHistoryItem from here as it's inside processFinalTranscript
+  }, [toast, processFinalTranscript, speakText]); 
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -526,15 +524,14 @@ export default function JarvisPage() {
     <div className="flex h-screen bg-background font-body">
       <AppSidebar />
       <SidebarInset>
-        <div className="relative flex flex-col flex-grow min-h-0">
+        <div className="w-full relative flex flex-col flex-grow min-h-0">
           <div className="absolute top-4 left-4 z-20">
-            {/* SidebarTrigger is now always visible to toggle sidebar on all screen sizes */}
             <SidebarTrigger>
                 <Menu />
             </SidebarTrigger>
           </div>
 
-          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6">
+          <div className="w-full flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6">
             
             <header className="text-center">
               <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
