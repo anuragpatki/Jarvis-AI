@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon } from 'lucide-react';
+import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -85,9 +85,9 @@ export default function JarvisPage() {
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "YouTube Search", description: `Searching for "${result.query}" on YouTube.` });
       } else if (result.type === 'googleDoc') {
-         speakText(`Document content generated for topic: ${result.topic}. Opening a new Google Doc.`);
+         speakText(`Document content generated for topic: ${result.topic}. Opening a new Google Doc. Please copy the content and paste it into the new document.`);
          window.open('https://docs.new', '_blank');
-         toast({ title: "Document Generated", description: `Content for topic "${result.topic}" has been generated. A new Google Doc has been opened.`});
+         toast({ title: "Document Generated", description: `Content for topic "${result.topic}" generated. A new Google Doc is opening. Copy the content below.`});
       } else if (result.type === 'unknown') {
         speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
@@ -109,6 +109,7 @@ export default function JarvisPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') {
+      setSpeechSupport('unsupported');
       return;
     }
     
@@ -125,7 +126,7 @@ export default function JarvisPage() {
     if (!SpeechRecognitionAPI) {
       setSpeechSupport('unsupported');
       const errorMsg = "Your browser doesn't support Speech Recognition. Try Chrome or Edge.";
-      speakText("Speech recognition is not supported on this browser.");
+      speakText("Speech recognition is not supported on this browser."); // Speak the error
       toast({
         title: "Voice Input Not Supported",
         description: errorMsg,
@@ -176,9 +177,7 @@ export default function JarvisPage() {
       if (transcriptToProcess) {
         processFinalTranscript(transcriptToProcess);
       } else {
-         // If 'no-speech' error already handled this, no need to do anything here.
-         // Otherwise, if onend is called without a result and no error, it means a silent stop.
-        if (!isLoading && !currentTranscript && speechRecognitionRef.current?.onerror === null) { // Check if onerror has been cleared or if it was a silent stop
+        if (!isLoading && !currentTranscript && speechRecognitionRef.current?.onerror === null) {
             // This case might be redundant if 'no-speech' error is consistently caught
         }
         setIsLoading(false); 
@@ -194,7 +193,6 @@ export default function JarvisPage() {
         title = "No Speech Detected";
         description = "I didn't hear anything. Please ensure your microphone is working and try speaking clearly.";
         toastVariant = "default";
-        // No console.error for 'no-speech' as it's handled by toast and voice feedback.
       } else if (event.error === 'audio-capture') {
         console.error("Speech recognition error (audio-capture): Microphone issue or permissions. Event:", event);
         description = "Audio capture failed. Please check your microphone permissions and ensure it's connected.";
@@ -226,9 +224,11 @@ export default function JarvisPage() {
         speechRecognitionRef.current.onerror = null;
         speechRecognitionRef.current.stop(); 
       }
-      window.speechSynthesis?.cancel(); 
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel(); 
+      }
     };
-  }, [toast, processFinalTranscript, speakText]); // Dependencies should be stable callbacks
+  }, [toast, processFinalTranscript, speakText]); 
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -241,7 +241,6 @@ export default function JarvisPage() {
     const recognition = speechRecognitionRef.current;
     if (isListening) {
       recognition.stop(); 
-      // onend will handle setIsListening(false) and playing stop sound
     } else {
       resetState(); 
       try {
@@ -285,6 +284,17 @@ export default function JarvisPage() {
     }
   };
 
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Content Copied", description: "Document content copied to clipboard!" });
+      speakText("Content copied to clipboard.");
+    }).catch(err => {
+      console.error("Failed to copy text: ", err);
+      toast({ title: "Copy Failed", description: "Could not copy content to clipboard.", variant: "destructive" });
+      speakText("Failed to copy content.");
+    });
+  };
+
   const renderCommandResult = () => {
     if (!commandResult) return null;
 
@@ -294,13 +304,16 @@ export default function JarvisPage() {
           <Card className="w-full max-w-2xl">
             <CardHeader>
               <CardTitle className="flex items-center"><FileTextIcon className="mr-2 h-6 w-6 text-primary" />Generated Document Content</CardTitle>
-              <CardDescription>Topic: {commandResult.topic}. A new Google Doc has been opened.</CardDescription>
+              <CardDescription>Topic: {commandResult.topic}. A new Google Doc has opened. Copy the content below and paste it there.</CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea readOnly value={commandResult.content} className="h-64 bg-muted/30" />
             </CardContent>
-             <CardFooter>
-              <p className="text-xs text-muted-foreground">You can copy this content to the newly opened Google Doc.</p>
+             <CardFooter className="flex justify-between items-center">
+              <p className="text-xs text-muted-foreground">Manually copy and paste into the new Google Doc tab.</p>
+              <Button onClick={() => handleCopyToClipboard(commandResult.content)} variant="outline" size="sm">
+                <CopyIcon className="mr-2 h-4 w-4" /> Copy Content
+              </Button>
             </CardFooter>
           </Card>
         );
