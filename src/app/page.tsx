@@ -12,8 +12,7 @@ import { processVoiceCommand, handleComposeEmail, type ProcessVoiceCommandOutput
 import EmailDialog from '@/components/jarvis/email-dialog';
 import type { EmailFormData } from '@/lib/schemas';
 import Image from 'next/image';
-// AppSidebar is no longer imported here, it's in layout.tsx
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'; // Import useSidebar
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useHistory } from '@/hooks/useHistory';
 
 
@@ -47,7 +46,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   const stopSoundRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const { addHistoryItem } = useHistory();
-  const { toggleSidebar } = useSidebar(); // Get toggleSidebar from context
+  const { toggleSidebar } = useSidebar();
 
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -526,11 +525,12 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   };
 
   return (
-    // This outermost div now handles full-screen centering.
-    <div className="min-h-full flex flex-col items-center justify-center p-4 bg-background font-body relative">
+    // This outermost div handles full-screen centering.
+    // Changed min-h-full to min-h-screen for explicit viewport height.
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background font-body relative">
       {/* Burger Menu Trigger - Positioned fixed or absolutely to the viewport/page */}
-      <div className="fixed top-4 left-4 z-30"> {/* z-30 to be above sidebar (often z-10 or z-20) */}
-        <SidebarTrigger onClick={toggleSidebar}> {/* Use toggleSidebar from useSidebar context */}
+      <div className="fixed top-4 left-4 z-30">
+        <SidebarTrigger onClick={toggleSidebar}>
             <Menu />
         </SidebarTrigger>
       </div>
@@ -607,7 +607,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
               </CardContent>
             </Card>
         )}
-      </div> {/* End of PARENT C: max-w-3xl mx-auto */}
+      </div>
       
       <EmailDialog
         open={showEmailDialog}
@@ -618,3 +618,4 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     </div>
   );
 }
+
