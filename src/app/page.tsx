@@ -527,7 +527,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background font-body relative">
+    <div className="h-screen w-screen flex items-center justify-center p-4 bg-background font-body">
       {/* Burger Menu Trigger - Positioned fixed and dynamically moves with sidebar */}
        <SidebarTrigger
         onClick={toggleSidebar}

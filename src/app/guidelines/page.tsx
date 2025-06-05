@@ -23,8 +23,8 @@ export default function GuidelinesPage({ searchParams }: GuidelinesPageProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background text-foreground p-4 md:p-8 flex flex-col items-center justify-center">
+      <div className="max-w-4xl w-full">
         <header className="mb-8 text-center">
            <div className="flex justify-center items-center mb-4">
             <BotMessageSquare className="h-16 w-16 text-primary" data-ai-hint="robot chat" />
