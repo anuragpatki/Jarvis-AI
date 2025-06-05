@@ -1,3 +1,4 @@
+
 // src/hooks/useHistory.ts
 'use client';
 
@@ -19,11 +20,12 @@ const MAX_HISTORY_ITEMS = 100; // Limit history size
 
 export function useHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // To indicate loading from localStorage
 
   useEffect(() => {
     // Ensure this only runs on the client
     if (typeof window !== 'undefined') {
+      setIsLoading(true); // Start loading
       try {
         const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
         if (storedHistory) {
@@ -31,23 +33,32 @@ export function useHistory() {
         }
       } catch (error) {
         console.error("Failed to load history from localStorage:", error);
+        // Optionally clear corrupted history if parsing fails
+        // localStorage.removeItem(HISTORY_STORAGE_KEY);
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Finish loading
       }
     } else {
       setIsLoading(false); // Not in a browser environment
     }
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   const addHistoryItem = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
     if (typeof window === 'undefined') return; // Don't run on server
 
+    // Guard against adding incomplete items, which might happen if data isn't passed correctly
+    if (!itemDetails.transcript || !itemDetails.actionType) {
+      console.warn("Attempted to add history item with missing transcript or actionType:", itemDetails);
+      return;
+    }
+
+    const newItem: HistoryItem = {
+      ...itemDetails,
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+    };
+
     setHistory(prevHistory => {
-      const newItem: HistoryItem = {
-        ...itemDetails,
-        id: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-      };
       const updatedHistory = [newItem, ...prevHistory].slice(0, MAX_HISTORY_ITEMS);
       try {
         localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updatedHistory));
@@ -56,7 +67,7 @@ export function useHistory() {
       }
       return updatedHistory;
     });
-  }, []);
+  }, []); // useCallback with empty dependencies as setHistory updater form is used
 
   const clearHistory = useCallback(() => {
     if (typeof window === 'undefined') return;

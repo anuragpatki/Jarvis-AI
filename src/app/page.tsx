@@ -31,10 +31,6 @@ interface JarvisPageProps {
 }
 
 export default function JarvisPage({ searchParams }: JarvisPageProps) {
-  // searchParams is now explicitly received.
-  // If not used, that's fine. The key is to prevent it from being
-  // accidentally enumerated by a generic prop processor.
-
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
@@ -138,7 +134,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         if ('query' in result && result.query) historyEntry.query = result.query;
         if ('topic' in result && result.topic) historyEntry.topic = result.topic;
         if ('prompt' in result && result.prompt) historyEntry.prompt = result.prompt;
-        if ('transcript' in result && result.transcript && result.type === 'unknown') historyEntry.transcript = result.transcript;
+        if ('transcript' in result && result.type === 'unknown' && result.transcript) historyEntry.transcript = result.transcript;
       }
       addHistoryItem(historyEntry);
 
@@ -280,7 +276,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText]);
+  }, [toast, processFinalTranscript, speakText, addHistoryItem]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -533,14 +529,17 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     <div className="flex h-screen bg-background font-body">
       <AppSidebar />
       <SidebarInset>
-        <div className="w-full relative flex flex-col flex-grow min-h-0">
+        {/* This div is the main container within SidebarInset. It will handle the overall flow and allow absolute positioning of the trigger. */}
+        <div className="relative flex flex-col flex-grow w-full h-full overflow-hidden">
+          {/* Sidebar Trigger (Burger Menu) */}
           <div className="absolute top-4 left-4 z-20">
             <SidebarTrigger>
                 <Menu />
             </SidebarTrigger>
           </div>
 
-          <div className="w-full flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6">
+          {/* Scrollable and Centered Content Area */}
+          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6">
             
             <header className="text-center">
               <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
@@ -612,8 +611,8 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
                   </CardContent>
                 </Card>
             )}
-          </div>
-        </div>
+          </div> {/* End of scrollable/centered content area */}
+        </div> {/* End of main container in SidebarInset */}
         
         <EmailDialog
           open={showEmailDialog}
