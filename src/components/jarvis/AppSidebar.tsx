@@ -32,31 +32,34 @@ function getActionTypeFriendlyName(actionType: string): string {
     case 'openWebsiteSearch': return 'Open Web';
     case 'unknown': return 'Unknown';
     case 'error': return 'Error';
-    case 'processing': return 'Processing...'; // For in-flight
-    case 'processingEmail': return 'Gen Email...'; // For in-flight email
+    case 'processing': return 'Processing...'; 
+    case 'processingEmail': return 'Gen Email...'; 
     default: return actionType.charAt(0).toUpperCase() + actionType.slice(1);
   }
 }
 
 
 export default function AppSidebar() {
-  const { setOpenMobile } = useSidebar(); // Use useSidebar to control mobile state if needed
+  const { setOpenMobile, isMobile, open, state } = useSidebar(); 
   const { groupedHistory, clearHistory, isLoading: historyLoading } = useHistory();
 
   const handleGuidelinesClick = () => {
     window.open('/guidelines', '_blank');
-    setOpenMobile(false); // Close mobile sidebar if open
+    if (isMobile) {
+      setOpenMobile(false); 
+    }
+    // For desktop, the sidebar state is managed by 'open' from useSidebar context
   };
 
   return (
-    <Sidebar collapsible="icon"> {/* This enables the icon-only collapsed state */}
+    <Sidebar collapsible="offcanvas" side="left"> {/* Changed to offcanvas */}
       <SidebarHeader>
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
            <BotMessageSquare className="h-7 w-7 text-primary" data-ai-hint="robot chat" />
           <span className="text-lg font-semibold text-primary group-data-[collapsible=icon]:hidden">Jarvis AI</span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="flex flex-col"> {/* Make SidebarContent a flex column */}
+      <SidebarContent className="flex flex-col"> 
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -70,7 +73,6 @@ export default function AppSidebar() {
         </SidebarMenu>
         <SidebarSeparator className="my-3" />
         
-        {/* History Section */}
         <div className="px-2 group-data-[collapsible=icon]:hidden flex justify-between items-center mb-2">
           <h3 className="text-sm font-semibold text-sidebar-foreground/80 flex items-center gap-2">
             <HistoryIcon className="h-4 w-4" />
@@ -83,9 +85,8 @@ export default function AppSidebar() {
           )}
         </div>
 
-        {/* Scrollable History List. Use flex-grow to take available space */}
         <div className="flex-grow overflow-y-auto group-data-[collapsible=icon]:hidden px-2">
-          <ScrollArea className="h-full"> {/* h-full to use parent's height */}
+          <ScrollArea className="h-full"> 
             {historyLoading ? (
               <p className="text-xs text-muted-foreground">Loading history...</p>
             ) : Object.keys(groupedHistory).length === 0 ? (
@@ -95,7 +96,7 @@ export default function AppSidebar() {
                 <div key={dateGroup} className="mb-3">
                   <h4 className="text-xs font-medium text-muted-foreground mb-1.5">{dateGroup}</h4>
                   <ul className="space-y-1">
-                    {(items as HistoryItem[]).map((item: HistoryItem) => ( // Ensure items is typed as HistoryItem[]
+                    {(items as HistoryItem[]).map((item: HistoryItem) => ( 
                       <li key={item.id} className="text-xs p-1.5 rounded-md hover:bg-sidebar-accent/50 transition-colors">
                         <div className="flex justify-between items-center">
                           <span className="truncate text-sidebar-foreground/90 max-w-[150px]" title={item.transcript}>
@@ -117,7 +118,7 @@ export default function AppSidebar() {
           </ScrollArea>
         </div>
       </SidebarContent>
-      <SidebarFooter className="group-data-[collapsible=icon]:hidden mt-auto"> {/* mt-auto to push footer down */}
+      <SidebarFooter className="group-data-[collapsible=icon]:hidden mt-auto"> 
         <p className="text-xs text-muted-foreground text-center">Jarvis v1.0</p>
       </SidebarFooter>
     </Sidebar>

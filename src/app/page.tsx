@@ -12,8 +12,8 @@ import { processVoiceCommand, handleComposeEmail, type ProcessVoiceCommandOutput
 import EmailDialog from '@/components/jarvis/email-dialog';
 import type { EmailFormData } from '@/lib/schemas';
 import Image from 'next/image';
-import AppSidebar from '@/components/jarvis/AppSidebar';
-import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+// AppSidebar is no longer imported here, it's in layout.tsx
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'; // Import useSidebar
 import { useHistory } from '@/hooks/useHistory';
 
 
@@ -24,7 +24,6 @@ declare global {
   }
 }
 
-// Define the expected props for a page component
 interface JarvisPageProps {
   params?: Record<string, string | string[]>;
   searchParams?: { [key: string]: string | string[] | undefined };
@@ -48,11 +47,12 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   const stopSoundRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const { addHistoryItem } = useHistory();
+  const { toggleSidebar } = useSidebar(); // Get toggleSidebar from context
 
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
-        window.speechSynthesis.cancel(); // Cancel any ongoing speech
+        window.speechSynthesis.cancel(); 
         const utterance = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(utterance);
       } catch (error) {
@@ -526,110 +526,95 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   };
 
   return (
-    <div className="flex h-screen bg-background font-body">
-      <AppSidebar />
-      <SidebarInset>
-        {/* PARENT A: Primary container inside SidebarInset. Handles burger menu positioning and overall flex structure. */}
-        <div className="relative flex flex-col w-full h-full">
-          {/* Burger Menu Trigger - Absolutely positioned relative to PARENT A */}
-          <div className="absolute top-4 left-4 z-20">
-            <SidebarTrigger>
-                <Menu />
-            </SidebarTrigger>
+    // This outermost div now handles full-screen centering.
+    <div className="min-h-full flex flex-col items-center justify-center p-4 bg-background font-body relative">
+      {/* Burger Menu Trigger - Positioned fixed or absolutely to the viewport/page */}
+      <div className="fixed top-4 left-4 z-30"> {/* z-30 to be above sidebar (often z-10 or z-20) */}
+        <SidebarTrigger onClick={toggleSidebar}> {/* Use toggleSidebar from useSidebar context */}
+            <Menu />
+        </SidebarTrigger>
+      </div>
+      
+      {/* This div is the main content block that gets centered */}
+      <div className="w-full max-w-3xl flex flex-col items-center space-y-6"> 
+        <header className="text-center">
+          <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
+          <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
+        </header>
+
+        <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
+          <Mic
+              className={`
+                  ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
+                  transition-colors duration-300
+              `}
+              size={80}
+              strokeWidth={1.5}
+              data-ai-hint="microphone sound"
+          />
+        </div>
+
+        <Button
+          onClick={handleToggleListen}
+          className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+          variant={isListening ? "destructive" : "default"}
+          disabled={speechSupport !== 'supported' || isLoading}
+        >
+          {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
+          {isListening ? 'Stop Listening' : 'Start Listening'}
+        </Button>
+
+        {isLoading && (
+          <div className="flex items-center space-x-2 text-primary">
+            <Loader2 className="animate-spin h-6 w-6" />
+            <span>Processing your request...</span>
           </div>
+        )}
 
-          {/* PARENT B: Scrollable Area. Takes remaining vertical space and provides padding. */}
-          {/* It is w-full of PARENT A. Uses flex to center its child both vertically and horizontally. */}
-          <div className="flex-1 flex flex-col justify-center items-center overflow-y-auto p-6 pt-16 md:pt-6 w-full">
-            
-            {/* PARENT C: Content Block to be centered by PARENT B. */}
-            {/* This block has a max-width. mx-auto is for horizontal, PARENT B handles vertical. */}
-            <div className="w-full max-w-3xl mx-auto"> 
-              {/* Inner wrapper for actual UI elements, using flex to center its own children. */}
-              <div className="flex flex-col items-center space-y-6">
-                <header className="text-center">
-                  <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
-                  <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
-                </header>
+        {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
+          <Card className="w-full"> 
+            <CardHeader>
+              <CardTitle>Transcript</CardTitle>
+              <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
+              {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
+              {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
+            </CardContent>
+          </Card>
+        )}
 
-                <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
-                  <Mic
-                      className={`
-                          ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
-                          transition-colors duration-300
-                      `}
-                      size={80}
-                      strokeWidth={1.5}
-                      data-ai-hint="microphone sound"
-                  />
-                </div>
+        {commandResult && (
+            <div className="w-full mt-4 animate-in fade-in duration-500"> 
+              {renderCommandResult()}
+          </div>
+        )}
 
-                <Button
-                  onClick={handleToggleListen}
-                  className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
-                  variant={isListening ? "destructive" : "default"}
-                  disabled={speechSupport !== 'supported' || isLoading}
-                >
-                  {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
-                  {isListening ? 'Stop Listening' : 'Start Listening'}
-                </Button>
-
-                {isLoading && (
-                  <div className="flex items-center space-x-2 text-primary">
-                    <Loader2 className="animate-spin h-6 w-6" />
-                    <span>Processing your request...</span>
-                  </div>
-                )}
-
-                {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
-                  <Card className="w-full"> 
-                    <CardHeader>
-                      <CardTitle>Transcript</CardTitle>
-                      <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
-                      {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
-                      {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {commandResult && (
-                   <div className="w-full mt-4 animate-in fade-in duration-500"> 
-                      {renderCommandResult()}
-                  </div>
-                )}
-
-                {speechSupport === 'pending' && !isLoading && (
-                   <div className="flex items-center space-x-2 text-primary mt-4">
-                     <Loader2 className="animate-spin h-6 w-6" />
-                     <span>Checking voice support...</span>
-                   </div>
-                 )}
-                {speechSupport === 'unsupported' && (
-                   <Card className="w-full border-destructive/50 mt-4"> 
-                       <CardHeader>
-                        <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
-                      </CardContent>
-                    </Card>
-                )}
-              </div> {/* End of PARENT C's inner flex wrapper */}
-            </div> {/* End of PARENT C: max-w-3xl mx-auto */}
-          </div> {/* End of PARENT B: Scrollable area */}
-        </div> {/* End of PARENT A: Primary container inside SidebarInset */}
-        
-        <EmailDialog
-          open={showEmailDialog}
-          onOpenChange={setShowEmailDialog}
-          onSubmit={handleEmailDialogSubmit}
-          initialIntention={initialEmailIntention}
-        />
-      </SidebarInset>
+        {speechSupport === 'pending' && !isLoading && (
+            <div className="flex items-center space-x-2 text-primary mt-4">
+              <Loader2 className="animate-spin h-6 w-6" />
+              <span>Checking voice support...</span>
+            </div>
+          )}
+        {speechSupport === 'unsupported' && (
+            <Card className="w-full border-destructive/50 mt-4"> 
+                <CardHeader>
+                <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+              </CardContent>
+            </Card>
+        )}
+      </div> {/* End of PARENT C: max-w-3xl mx-auto */}
+      
+      <EmailDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
+        onSubmit={handleEmailDialogSubmit}
+        initialIntention={initialEmailIntention}
+      />
     </div>
   );
 }
-
