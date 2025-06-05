@@ -1,3 +1,4 @@
+
 // src/components/jarvis/AppSidebar.tsx
 'use client';
 
@@ -22,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 function getActionTypeFriendlyName(actionType: string): string {
   switch (actionType) {
     case 'googleDoc': return 'Doc Gen';
-    case 'emailComposeIntent': return 'Email Intent';
+    case 'emailComposeIntent': return 'Email Start';
     case 'emailDraft': return 'Email Draft';
     case 'youtubeSearch': return 'YouTube';
     case 'geminiSearch': return 'Search';
@@ -31,13 +32,15 @@ function getActionTypeFriendlyName(actionType: string): string {
     case 'openWebsiteSearch': return 'Open Web';
     case 'unknown': return 'Unknown';
     case 'error': return 'Error';
-    default: return actionType;
+    case 'processing': return 'Processing...'; // For in-flight
+    case 'processingEmail': return 'Gen Email...'; // For in-flight email
+    default: return actionType.charAt(0).toUpperCase() + actionType.slice(1);
   }
 }
 
 
 export default function AppSidebar() {
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile } = useSidebar(); // Use useSidebar to control mobile state if needed
   const { groupedHistory, clearHistory, isLoading: historyLoading } = useHistory();
 
   const handleGuidelinesClick = () => {
@@ -46,14 +49,14 @@ export default function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon"> {/* This enables the icon-only collapsed state */}
       <SidebarHeader>
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
            <BotMessageSquare className="h-7 w-7 text-primary" data-ai-hint="robot chat" />
           <span className="text-lg font-semibold text-primary group-data-[collapsible=icon]:hidden">Jarvis AI</span>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="flex flex-col"> {/* Make SidebarContent a flex column */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -66,46 +69,55 @@ export default function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarSeparator className="my-3" />
-        <div className="px-2 group-data-[collapsible=icon]:hidden">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-sidebar-foreground/80 flex items-center gap-2">
-              <HistoryIcon className="h-4 w-4" />
-              History
-            </h3>
-            {Object.keys(groupedHistory).length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearHistory} className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive group-data-[collapsible=icon]:hidden" title="Clear History">
-                <Trash2 className="h-3 w-3 mr-1" /> Clear
-              </Button>
-            )}
-          </div>
-        </div>
-        <ScrollArea className="h-[calc(100%-180px)] group-data-[collapsible=icon]:hidden">
-          {historyLoading ? (
-            <p className="px-2 text-xs text-muted-foreground">Loading history...</p>
-          ) : Object.keys(groupedHistory).length === 0 ? (
-            <p className="px-2 text-xs text-muted-foreground">No history yet.</p>
-          ) : (
-            Object.entries(groupedHistory).map(([dateGroup, items]) => (
-              <div key={dateGroup} className="mb-3 px-2">
-                <h4 className="text-xs font-medium text-muted-foreground mb-1.5">{dateGroup}</h4>
-                <ul className="space-y-1">
-                  {items.map((item: HistoryItem) => (
-                    <li key={item.id} className="text-xs p-1.5 rounded-md hover:bg-sidebar-accent/50 transition-colors">
-                      <div className="flex justify-between items-center">
-                        <span className="truncate text-sidebar-foreground/90" title={item.transcript}>
-                          {item.transcript.length > 30 ? `${item.transcript.substring(0, 28)}...` : item.transcript}
-                        </span>
-                        <Badge variant="outline" className="text-xs px-1.5 py-0.5 ml-2">{getActionTypeFriendlyName(item.actionType)}</Badge>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))
+        
+        {/* History Section */}
+        <div className="px-2 group-data-[collapsible=icon]:hidden flex justify-between items-center mb-2">
+          <h3 className="text-sm font-semibold text-sidebar-foreground/80 flex items-center gap-2">
+            <HistoryIcon className="h-4 w-4" />
+            History
+          </h3>
+          {Object.keys(groupedHistory).length > 0 && !historyLoading && (
+            <Button variant="ghost" size="sm" onClick={clearHistory} className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive" title="Clear History">
+              <Trash2 className="h-3 w-3 mr-1" /> Clear
+            </Button>
           )}
-        </ScrollArea>
+        </div>
+
+        {/* Scrollable History List. Use flex-grow to take available space */}
+        <div className="flex-grow overflow-y-auto group-data-[collapsible=icon]:hidden px-2">
+          <ScrollArea className="h-full"> {/* h-full to use parent's height */}
+            {historyLoading ? (
+              <p className="text-xs text-muted-foreground">Loading history...</p>
+            ) : Object.keys(groupedHistory).length === 0 ? (
+              <p className="text-xs text-muted-foreground">No history yet.</p>
+            ) : (
+              Object.entries(groupedHistory).map(([dateGroup, items]) => (
+                <div key={dateGroup} className="mb-3">
+                  <h4 className="text-xs font-medium text-muted-foreground mb-1.5">{dateGroup}</h4>
+                  <ul className="space-y-1">
+                    {(items as HistoryItem[]).map((item: HistoryItem) => ( // Ensure items is typed as HistoryItem[]
+                      <li key={item.id} className="text-xs p-1.5 rounded-md hover:bg-sidebar-accent/50 transition-colors">
+                        <div className="flex justify-between items-center">
+                          <span className="truncate text-sidebar-foreground/90 max-w-[150px]" title={item.transcript}>
+                            {item.transcript.length > 25 ? `${item.transcript.substring(0, 22)}...` : item.transcript}
+                          </span>
+                          <Badge variant={item.actionType === 'error' ? 'destructive' : 'outline'} className="text-xs px-1.5 py-0.5 ml-2 shrink-0">
+                            {getActionTypeFriendlyName(item.actionType)}
+                          </Badge>
+                        </div>
+                         {item.query && <p className="text-xs text-muted-foreground/70 truncate" title={item.query}>Q: {item.query}</p>}
+                         {item.topic && <p className="text-xs text-muted-foreground/70 truncate" title={item.topic}>T: {item.topic}</p>}
+                         {item.prompt && <p className="text-xs text-muted-foreground/70 truncate" title={item.prompt}>P: {item.prompt}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
+          </ScrollArea>
+        </div>
       </SidebarContent>
-      <SidebarFooter className="group-data-[collapsible=icon]:hidden">
+      <SidebarFooter className="group-data-[collapsible=icon]:hidden mt-auto"> {/* mt-auto to push footer down */}
         <p className="text-xs text-muted-foreground text-center">Jarvis v1.0</p>
       </SidebarFooter>
     </Sidebar>

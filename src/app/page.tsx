@@ -77,17 +77,18 @@ export default function JarvisPage() {
     setCommandResult(null);
     setIsLoading(true);
     setFinalTranscript(text);
-    let historyEntry: Parameters<typeof addHistoryItem>[0] = { transcript: text, actionType: 'unknown' };
+    let historyEntry: Parameters<typeof addHistoryItem>[0] = { transcript: text, actionType: 'processing' };
 
     try {
       const result = await processVoiceCommand(text);
       setCommandResult(result);
-      historyEntry.actionType = result.type;
+      historyEntry.actionType = result.type; // Update actionType from result
 
       if (result.type === 'emailComposeIntent') {
         speakText("Please provide email details.");
         setInitialEmailIntention(text);
         setShowEmailDialog(true);
+         historyEntry.query = text; // Capture intention as query for history
       } else if (result.type === 'youtubeSearch') {
         speakText(`Searching YouTube for ${result.query}.`);
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
@@ -119,18 +120,24 @@ export default function JarvisPage() {
       } else if (result.type === 'unknown') {
         speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
+         // historyEntry.transcript is already set
       } else if (result.type === 'error') {
         speakText(`An error occurred: ${result.message}`);
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
-      addHistoryItem(historyEntry);
+      
+      if (result.type) { // Add to history if a type was determined
+        addHistoryItem(historyEntry);
+      }
+
     } catch (error) {
       console.error("Error processing voice command:", error);
       const errorMessage = "An unexpected error occurred while processing.";
       speakText(errorMessage);
       toast({ title: "Processing Error", description: errorMessage, variant: "destructive" });
       setCommandResult({type: 'error', message: errorMessage});
-      addHistoryItem({ ...historyEntry, actionType: 'error' });
+      historyEntry.actionType = 'error'; // Set actionType for error
+      addHistoryItem(historyEntry); // Log error to history
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +163,6 @@ export default function JarvisPage() {
     if (!SpeechRecognitionAPI) {
       setSpeechSupport('unsupported');
       const errorMsg = "Your browser doesn't support Speech Recognition. Try Chrome or Edge.";
-      // speakText("Speech recognition is not supported on this browser."); // This might be too early if synthesis isn't ready
       toast({
         title: "Voice Input Not Supported",
         description: errorMsg,
@@ -170,16 +176,16 @@ export default function JarvisPage() {
     const recognition = new SpeechRecognitionAPI();
     speechRecognitionRef.current = recognition;
 
-    recognition.continuous = false; // Stop after first pause
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsListening(true);
       setCurrentTranscript('');
-      finalTranscriptRef.current = ''; // Clear ref
-      setCommandResult(null); // Clear previous results
-      setIsLoading(false); // Reset loading state
+      finalTranscriptRef.current = '';
+      setCommandResult(null);
+      setIsLoading(false);
       startSoundRef.current?.play().catch(e => console.error("Error playing start sound:", e));
     };
 
@@ -196,7 +202,7 @@ export default function JarvisPage() {
       }
       setCurrentTranscript(interim);
       if (finalUtterance) {
-        finalTranscriptRef.current = finalUtterance.trim(); // Update ref with final part
+        finalTranscriptRef.current = finalUtterance.trim();
       }
     };
 
@@ -207,17 +213,15 @@ export default function JarvisPage() {
       if (transcriptToProcess) {
         processFinalTranscript(transcriptToProcess);
       } else {
-        // If speechRecognitionRef.current.onerror was called for 'no-speech', it handles the toast.
-        // Otherwise, if it ended with no final transcript and no error, it might be a quick stop.
         if (!isLoading && !currentTranscript && speechRecognitionRef.current && (speechRecognitionRef.current as any)._error !== 'no-speech') {
-          // Do nothing specific if stopped quickly without speech, unless specific UX is desired
+          // No final transcript and not a 'no-speech' error, possibly quick stop
         }
         setIsLoading(false);
       }
     };
 
     recognition.onerror = (event) => {
-      (speechRecognitionRef.current as any)._error = event.error; // Track error for onend logic
+      (speechRecognitionRef.current as any)._error = event.error;
       let description = "An error occurred during speech recognition.";
       let title = "Speech Recognition Error";
       let toastVariant: "default" | "destructive" = "destructive";
@@ -233,11 +237,14 @@ export default function JarvisPage() {
         console.error("Speech recognition error (not-allowed): Microphone access denied. Event:", event);
         description = "Microphone access was denied. Please allow microphone access in your browser settings.";
       } else {
-        console.error(`Unexpected speech recognition error: ${event.error}. Event:`, event);
+        console.error(`Speech recognition error: ${event.error}. Event:`, event);
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
 
-      speakText(description);
+      // No speakText(description) here for 'no-speech' to avoid repetitive announcements
+      if (event.error !== 'no-speech') {
+        speakText(description);
+      }
       toast({
         title: title,
         description: description,
@@ -255,14 +262,13 @@ export default function JarvisPage() {
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onend = null;
         speechRecognitionRef.current.onerror = null;
-        speechRecognitionRef.current.stop(); // Ensure it's stopped on unmount
+        speechRecognitionRef.current.stop();
       }
       if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel(); // Clear any pending speech
+        window.speechSynthesis.cancel();
       }
     };
-  // Removed speakText from dependencies as it is stable due to its own useCallback with empty deps
-  }, [toast, processFinalTranscript]);
+  }, [toast, processFinalTranscript, speakText]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -276,21 +282,19 @@ export default function JarvisPage() {
     if (isListening) {
       recognition.stop();
     } else {
-      resetState(); // Clear everything before starting
-      (recognition as any)._error = null; // Reset error state before starting
+      resetState();
+      (recognition as any)._error = null;
       try {
         recognition.start();
       } catch (error) {
         console.error("Error starting recognition:", error);
         let msg = "Could not start voice recognition.";
         if ((error as Error).name === 'InvalidStateError') {
-            // This can happen if stop() was called and it hasn't fully finished
-            // or if start() is called rapidly.
             msg = "Recognition already active or ending. Please wait a moment and try again.";
         }
         speakText(msg);
         toast({ title: "Recognition Error", description: msg, variant: "destructive" });
-        setIsListening(false); // Ensure state is consistent
+        setIsListening(false);
       }
     }
   };
@@ -298,7 +302,13 @@ export default function JarvisPage() {
   const handleEmailDialogSubmit = async (data: EmailFormData) => {
     setIsLoading(true);
     setShowEmailDialog(false);
-    const historyBase = { transcript: `Email to ${data.recipient}: ${data.subject}`, query: data.intention };
+    const historyBase = { transcript: `Email to ${data.recipient} about "${data.subject}"`, query: data.intention };
+    let historyEntry: Parameters<typeof addHistoryItem>[0] = {
+      transcript: historyBase.transcript,
+      query: historyBase.query,
+      actionType: 'processingEmail'
+    };
+
     try {
       const result = await handleComposeEmail(data);
       setCommandResult(result);
@@ -307,19 +317,21 @@ export default function JarvisPage() {
         const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(data.recipient)}&su=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(result.draft)}`;
         window.open(gmailUrl, '_blank');
         toast({ title: "Email Draft Generated", description: "Your email draft is ready below. A Gmail compose window has also opened.", icon: <CheckCircleIcon className="h-5 w-5 text-green-500" /> });
-        addHistoryItem({ ...historyBase, actionType: 'emailDraft' });
+        historyEntry.actionType = 'emailDraft';
       } else {
         speakText(`Failed to compose email draft. ${result.message}`);
         toast({ title: "Email Generation Error", description: result.message, variant: "destructive" });
-        addHistoryItem({ ...historyBase, actionType: 'error' });
+        historyEntry.actionType = 'error';
       }
+      addHistoryItem(historyEntry);
     } catch (error) {
       console.error("Error submitting email form:", error);
       const errorMsg = "Failed to generate email draft.";
       speakText(errorMsg);
       toast({ title: "Submission Error", description: errorMsg, variant: "destructive" });
       setCommandResult({type: 'error', message: 'Failed to submit email form.'});
-      addHistoryItem({ ...historyBase, actionType: 'error' });
+      historyEntry.actionType = 'error';
+      addHistoryItem(historyEntry);
     } finally {
       setIsLoading(false);
     }
@@ -345,11 +357,8 @@ export default function JarvisPage() {
     try {
       const link = document.createElement('a');
       link.href = imageDataUri;
-      
-      // Sanitize prompt for filename
       let filename = prompt ? prompt.replace(/[^a-z0-9_]+/gi, '_').substring(0, 50) : 'jarvis_generated_image';
-      filename = `${filename || 'jarvis_generated_image'}.png`; // Ensure .png extension
-      
+      filename = `${filename || 'jarvis_generated_image'}.png`;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -510,94 +519,102 @@ export default function JarvisPage() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-background font-body">
       <AppSidebar />
       <SidebarInset>
-        <div className="flex flex-col items-center justify-center min-h-full p-6 space-y-6 bg-background font-body overflow-y-auto">
+        {/* This div wraps the trigger and the main scrollable content */}
+        <div className="relative flex flex-col flex-grow min-h-0"> {/* Use flex-grow and min-h-0 for proper flex behavior */}
           <div className="absolute top-4 left-4 z-20">
-            <SidebarTrigger className={isMobile ? '' : 'md:hidden'}>
+             {/* SidebarTrigger's visibility is controlled by its own responsive logic or props if needed */}
+            <SidebarTrigger className={isMobile ? '' : 'md:hidden'}> {/* This keeps existing behavior: trigger on mobile, hidden on desktop */}
                 <Menu />
             </SidebarTrigger>
           </div>
-          <header className="text-center mt-8 md:mt-0"> {/* Added margin top for mobile to avoid overlap */}
-            <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
-            <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
-          </header>
 
-          <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
-            <Mic
-                className={`
-                    ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
-                    transition-colors duration-300
-                `}
-                size={80}
-                strokeWidth={1.5}
-                data-ai-hint="microphone sound"
-            />
-          </div>
+          {/* Main scrollable content area, centered */}
+          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6"> {/* Added pt-16 for mobile to not overlap with trigger */}
+            
+            <header className="text-center">
+              <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
+              <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
+            </header>
 
-          <Button
-            onClick={handleToggleListen}
-            className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
-            variant={isListening ? "destructive" : "default"}
-            disabled={speechSupport !== 'supported' || isLoading}
-          >
-            {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
-            {isListening ? 'Stop Listening' : 'Start Listening'}
-          </Button>
-
-          {isLoading && (
-            <div className="flex items-center space-x-2 text-primary">
-              <Loader2 className="animate-spin h-6 w-6" />
-              <span>Processing your request...</span>
+            <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
+              <Mic
+                  className={`
+                      ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
+                      transition-colors duration-300
+                  `}
+                  size={80}
+                  strokeWidth={1.5}
+                  data-ai-hint="microphone sound"
+              />
             </div>
-          )}
 
-          {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Transcript</CardTitle>
-                <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
-                {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
-                {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
-              </CardContent>
-            </Card>
-          )}
+            <Button
+              onClick={handleToggleListen}
+              className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+              variant={isListening ? "destructive" : "default"}
+              disabled={speechSupport !== 'supported' || isLoading}
+            >
+              {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
+              {isListening ? 'Stop Listening' : 'Start Listening'}
+            </Button>
 
-          {commandResult && (
-             <div className="w-full max-w-2xl mt-4 animate-in fade-in duration-500">
-                {renderCommandResult()}
-            </div>
-          )}
+            {isLoading && (
+              <div className="flex items-center space-x-2 text-primary">
+                <Loader2 className="animate-spin h-6 w-6" />
+                <span>Processing your request...</span>
+              </div>
+            )}
 
-          {speechSupport === 'pending' && !isLoading && (
-             <div className="flex items-center space-x-2 text-primary mt-4">
-               <Loader2 className="animate-spin h-6 w-6" />
-               <span>Checking voice support...</span>
-             </div>
-           )}
-          {speechSupport === 'unsupported' && (
-             <Card className="w-full max-w-md border-destructive/50 mt-4">
-                 <CardHeader>
-                  <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+            {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Transcript</CardTitle>
+                  <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+                  {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
+                  {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
+                  {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
                 </CardContent>
               </Card>
-          )}
+            )}
 
-          <EmailDialog
-            open={showEmailDialog}
-            onOpenChange={setShowEmailDialog}
-            onSubmit={handleEmailDialogSubmit}
-            initialIntention={initialEmailIntention}
-          />
-          <Toaster />
-        </div>
+            {commandResult && (
+               <div className="w-full max-w-2xl mt-4 animate-in fade-in duration-500">
+                  {renderCommandResult()}
+              </div>
+            )}
+
+            {speechSupport === 'pending' && !isLoading && (
+               <div className="flex items-center space-x-2 text-primary mt-4">
+                 <Loader2 className="animate-spin h-6 w-6" />
+                 <span>Checking voice support...</span>
+               </div>
+             )}
+            {speechSupport === 'unsupported' && (
+               <Card className="w-full max-w-md border-destructive/50 mt-4">
+                   <CardHeader>
+                    <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+                  </CardContent>
+                </Card>
+            )}
+          </div> {/* End of main scrollable content area */}
+        </div> {/* End of wrapper for trigger and scrollable content */}
+        
+        <EmailDialog
+          open={showEmailDialog}
+          onOpenChange={setShowEmailDialog}
+          onSubmit={handleEmailDialogSubmit}
+          initialIntention={initialEmailIntention}
+        />
+        {/* Toaster should ideally be in RootLayout to cover all pages/dialogs globally */}
+        {/* <Toaster /> */} 
       </SidebarInset>
     </div>
   );
