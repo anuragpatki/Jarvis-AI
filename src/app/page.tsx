@@ -35,12 +35,31 @@ export default function JarvisPage() {
   const [speechSupport, setSpeechSupport] = useState<'pending' | 'supported' | 'unsupported'>('pending');
   
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const startSoundRef = useRef<HTMLAudioElement | null>(null);
+  const stopSoundRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+
+  const speakText = useCallback((text: string) => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        // Cancel any ongoing speech to prevent overlap
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error("Speech synthesis error:", error);
+        // Optionally toast if speech fails, but might be too noisy
+        // toast({ title: "Speech Synthesis Error", description: "Could not play voice feedback.", variant: "destructive" });
+      }
+    } else {
+      console.warn("Speech synthesis not supported by this browser.");
+    }
+  }, [toast]);
+
 
   const resetState = useCallback(() => {
     setCurrentTranscript('');
     setFinalTranscript('');
-    // finalTranscriptRef.current is reset in onstart
     setCommandResult(null);
     setIsLoading(false);
   }, []);
@@ -53,50 +72,67 @@ export default function JarvisPage() {
     
     setCommandResult(null);
     setIsLoading(true);
-    setFinalTranscript(text); // Display what's being processed
+    setFinalTranscript(text); 
 
     try {
       const result = await processVoiceCommand(text);
       setCommandResult(result);
 
       if (result.type === 'emailComposeIntent') {
+        speakText("Please provide email details.");
         setInitialEmailIntention(text);
         setShowEmailDialog(true);
       } else if (result.type === 'youtubeSearch') {
+        speakText(`Searching YouTube for ${result.query}.`);
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "YouTube Search", description: `Searching for "${result.query}" on YouTube.` });
       } else if (result.type === 'googleDoc') {
-         toast({ title: "Document Generated", description: `Content for topic "${result.topic}" has been generated.`});
+         speakText(`Document content generated for topic: ${result.topic}. Opening a new Google Doc.`);
+         window.open('https://docs.new', '_blank');
+         toast({ title: "Document Generated", description: `Content for topic "${result.topic}" has been generated. A new Google Doc has been opened.`});
       } else if (result.type === 'unknown') {
+        speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
       } else if (result.type === 'error') {
+        speakText(`An error occurred: ${result.message}`);
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
     } catch (error) {
       console.error("Error processing voice command:", error);
-      toast({ title: "Processing Error", description: "An unexpected error occurred.", variant: "destructive" });
-      setCommandResult({type: 'error', message: 'An unexpected error occurred while processing.'});
+      const errorMessage = "An unexpected error occurred while processing.";
+      speakText(errorMessage);
+      toast({ title: "Processing Error", description: errorMessage, variant: "destructive" });
+      setCommandResult({type: 'error', message: errorMessage});
     } finally {
       setIsLoading(false);
-      // Don't clear finalTranscript here as it's displaying the processed command.
-      // It will be cleared by resetState() before the next listening session.
     }
-  }, [toast, setInitialEmailIntention, setShowEmailDialog]);
+  }, [toast, setInitialEmailIntention, setShowEmailDialog, speakText]);
 
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
+    
+    try {
+      startSoundRef.current = new Audio('/sounds/start-listening.mp3');
+      stopSoundRef.current = new Audio('/sounds/stop-listening.mp3');
+    } catch (e) {
+      console.error("Error initializing audio files. Ensure /sounds/start-listening.mp3 and /sounds/stop-listening.mp3 exist in public folder.", e);
+      toast({title: "Audio Error", description: "Could not load listening sound effects.", variant: "destructive", duration: 7000});
+    }
+
 
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       setSpeechSupport('unsupported');
+      const errorMsg = "Your browser doesn't support Speech Recognition. Try Chrome or Edge.";
+      speakText("Speech recognition is not supported on this browser.");
       toast({
         title: "Voice Input Not Supported",
-        description: "Your browser doesn't support Speech Recognition. Try Chrome or Edge.",
+        description: errorMsg,
         variant: "destructive",
-        duration: 5000,
+        duration: 7000,
       });
       return;
     }
@@ -105,16 +141,17 @@ export default function JarvisPage() {
     const recognition = new SpeechRecognitionAPI();
     speechRecognitionRef.current = recognition;
     
-    recognition.continuous = false; // Changed to false for auto-stop
+    recognition.continuous = false; 
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsListening(true);
-      setCurrentTranscript(''); // Clear live transcript display
-      finalTranscriptRef.current = ''; // Reset internal ref for new utterance
-      setCommandResult(null); // Clear previous results
+      setCurrentTranscript(''); 
+      finalTranscriptRef.current = ''; 
+      setCommandResult(null); 
       setIsLoading(false);
+      startSoundRef.current?.play().catch(e => console.error("Error playing start sound:", e));
     };
 
     recognition.onresult = (event) => {
@@ -128,19 +165,25 @@ export default function JarvisPage() {
           interim += transcriptPart;
         }
       }
-      setCurrentTranscript(interim); // Update live display
+      setCurrentTranscript(interim); 
       if (finalUtterance) {
-        finalTranscriptRef.current = finalUtterance.trim(); // Store final utterance
+        finalTranscriptRef.current = finalUtterance.trim(); 
       }
     };
     
     recognition.onend = () => {
-      setIsListening(false); // Recognition has stopped
+      setIsListening(false); 
+      stopSoundRef.current?.play().catch(e => console.error("Error playing stop sound:", e));
       const transcriptToProcess = finalTranscriptRef.current.trim();
       if (transcriptToProcess) {
         processFinalTranscript(transcriptToProcess);
       } else {
-        setIsLoading(false); // No transcript to process
+        // If no speech was captured, and it wasn't a manual stop, inform the user.
+        // This check prevents "No speech detected" if user manually stops before speaking.
+        if (isLoading && !currentTranscript) { // isLoading might be true if it was trying to process
+             // Already handled by onerror 'no-speech'
+        }
+        setIsLoading(false); 
       }
     };
 
@@ -155,6 +198,7 @@ export default function JarvisPage() {
         description = "Microphone access was denied. Please allow microphone access in your browser settings.";
       }
       
+      speakText(description);
       toast({
         title: "Speech Recognition Error",
         description: description,
@@ -162,32 +206,48 @@ export default function JarvisPage() {
       });
       setIsListening(false);
       setIsLoading(false);
+      stopSoundRef.current?.play().catch(e => console.error("Error playing stop sound on error:", e));
     };
 
     return () => {
       if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop(); // Ensure it's stopped on component unmount
+        speechRecognitionRef.current.stop(); 
         speechRecognitionRef.current.onstart = null;
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onend = null;
         speechRecognitionRef.current.onerror = null;
       }
+      window.speechSynthesis?.cancel(); // Stop any ongoing speech on unmount
     };
-  }, [toast, processFinalTranscript]); // Dependencies for setting up recognition object and its handlers
+  }, [toast, processFinalTranscript, speakText]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
-      toast({ title: "Voice input not available", description: "Speech recognition is not initialized or not supported.", variant: "destructive"});
+      const msg = "Speech recognition is not initialized or not supported.";
+      speakText(msg);
+      toast({ title: "Voice input not available", description: msg, variant: "destructive"});
       return;
     }
 
     const recognition = speechRecognitionRef.current;
     if (isListening) {
-      recognition.stop(); // This will trigger onend, which sets isListening to false.
+      recognition.stop(); 
+      // onend will handle setIsListening(false) and playing stop sound
     } else {
-      resetState(); // Clear previous data for a fresh start
-      // onstart will set isListening = true and clear finalTranscriptRef.current & currentTranscript
-      recognition.start();
+      resetState(); 
+      // onstart will set isListening = true, play start sound, and clear transcripts
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error("Error starting recognition:", error);
+        let msg = "Could not start voice recognition.";
+        if ((error as Error).name === 'InvalidStateError') {
+            msg = "Recognition already active or ending. Please wait a moment and try again.";
+        }
+        speakText(msg);
+        toast({ title: "Recognition Error", description: msg, variant: "destructive" });
+        setIsListening(false); // Ensure UI consistency
+      }
     }
   };
 
@@ -198,13 +258,19 @@ export default function JarvisPage() {
       const result = await handleComposeEmail(data);
       setCommandResult(result);
       if (result.type === 'emailDraft') {
-        toast({ title: "Email Draft Generated", description: "Your email draft is ready below.", icon: <CheckCircleIcon className="h-5 w-5 text-green-500" /> });
+        speakText("Email draft generated. Opening Gmail.");
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(data.recipient)}&su=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(result.draft)}`;
+        window.open(gmailUrl, '_blank');
+        toast({ title: "Email Draft Generated", description: "Your email draft is ready below. A Gmail compose window has also opened.", icon: <CheckCircleIcon className="h-5 w-5 text-green-500" /> });
       } else {
+        speakText(`Failed to compose email draft. ${result.message}`);
         toast({ title: "Email Generation Error", description: result.message, variant: "destructive" });
       }
     } catch (error) {
       console.error("Error submitting email form:", error);
-      toast({ title: "Submission Error", description: "Failed to generate email draft.", variant: "destructive" });
+      const errorMsg = "Failed to generate email draft.";
+      speakText(errorMsg);
+      toast({ title: "Submission Error", description: errorMsg, variant: "destructive" });
       setCommandResult({type: 'error', message: 'Failed to submit email form.'});
     } finally {
       setIsLoading(false);
@@ -220,11 +286,14 @@ export default function JarvisPage() {
           <Card className="w-full max-w-2xl">
             <CardHeader>
               <CardTitle className="flex items-center"><FileTextIcon className="mr-2 h-6 w-6 text-primary" />Generated Document Content</CardTitle>
-              <CardDescription>Topic: {commandResult.topic}</CardDescription>
+              <CardDescription>Topic: {commandResult.topic}. A new Google Doc has been opened.</CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea readOnly value={commandResult.content} className="h-64 bg-muted/30" />
             </CardContent>
+             <CardFooter>
+              <p className="text-xs text-muted-foreground">You can copy this content to the newly opened Google Doc.</p>
+            </CardFooter>
           </Card>
         );
       case 'emailDraft':
@@ -232,12 +301,13 @@ export default function JarvisPage() {
           <Card className="w-full max-w-2xl">
             <CardHeader>
               <CardTitle className="flex items-center"><MailIcon className="mr-2 h-6 w-6 text-primary" />Generated Email Draft</CardTitle>
+              <CardDescription>A Gmail compose window has been opened with this draft.</CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea readOnly value={commandResult.draft} className="h-64 bg-muted/30" />
             </CardContent>
              <CardFooter>
-              <p className="text-xs text-muted-foreground">You can copy this draft to your email client.</p>
+              <p className="text-xs text-muted-foreground">You can review and send the email from the Gmail tab.</p>
             </CardFooter>
           </Card>
         );
@@ -364,3 +434,4 @@ export default function JarvisPage() {
     </div>
   );
 }
+
