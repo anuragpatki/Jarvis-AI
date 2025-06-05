@@ -7,7 +7,6 @@ import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangl
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-// import { Toaster } from '@/components/ui/toaster'; // Already in layout
 import { useToast } from '@/hooks/use-toast';
 import { processVoiceCommand, handleComposeEmail, type ProcessVoiceCommandOutput, type HandleComposeEmailOutput } from './actions';
 import EmailDialog from '@/components/jarvis/email-dialog';
@@ -25,7 +24,17 @@ declare global {
   }
 }
 
-export default function JarvisPage() {
+// Define the expected props for a page component
+interface JarvisPageProps {
+  params?: Record<string, string | string[]>;
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export default function JarvisPage({ searchParams }: JarvisPageProps) {
+  // searchParams is now explicitly received.
+  // If not used, that's fine. The key is to prevent it from being
+  // accidentally enumerated by a generic prop processor.
+
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
@@ -81,13 +90,13 @@ export default function JarvisPage() {
     try {
       const result = await processVoiceCommand(text);
       setCommandResult(result);
-      historyEntry.actionType = result.type; 
+      historyEntry.actionType = result.type;
 
       if (result.type === 'emailComposeIntent') {
         speakText("Please provide email details.");
         setInitialEmailIntention(text);
         setShowEmailDialog(true);
-         historyEntry.query = text; 
+         historyEntry.query = text;
       } else if (result.type === 'youtubeSearch') {
         speakText(`Searching YouTube for ${result.query}.`);
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
@@ -119,7 +128,7 @@ export default function JarvisPage() {
       } else if (result.type === 'unknown') {
         speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
-         historyEntry.transcript = result.transcript; 
+         historyEntry.transcript = result.transcript;
       } else if (result.type === 'error') {
         speakText(`An error occurred: ${result.message}`);
         toast({ title: "Error", description: result.message, variant: "destructive" });
@@ -129,7 +138,7 @@ export default function JarvisPage() {
         if ('query' in result && result.query) historyEntry.query = result.query;
         if ('topic' in result && result.topic) historyEntry.topic = result.topic;
         if ('prompt' in result && result.prompt) historyEntry.prompt = result.prompt;
-        if ('transcript' in result && result.transcript && result.type === 'unknown') historyEntry.transcript = result.transcript; 
+        if ('transcript' in result && result.transcript && result.type === 'unknown') historyEntry.transcript = result.transcript;
       }
       addHistoryItem(historyEntry);
 
@@ -271,7 +280,7 @@ export default function JarvisPage() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText]); 
+  }, [toast, processFinalTranscript, speakText]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -603,8 +612,8 @@ export default function JarvisPage() {
                   </CardContent>
                 </Card>
             )}
-          </div> 
-        </div> 
+          </div>
+        </div>
         
         <EmailDialog
           open={showEmailDialog}
@@ -616,4 +625,3 @@ export default function JarvisPage() {
     </div>
   );
 }
-

@@ -1,3 +1,4 @@
+
 // src/app/guidelines/page.tsx
 'use client';
 
@@ -7,7 +8,14 @@ import { FileTextIcon, YoutubeIcon, MailIcon, SearchIcon, ImageIcon, MapPin, Glo
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default function GuidelinesPage() {
+// Define the expected props for a page component
+interface GuidelinesPageProps {
+  params?: Record<string, string | string[]>;
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export default function GuidelinesPage({ searchParams }: GuidelinesPageProps) {
+  // searchParams is now explicitly received.
   const [currentYear, setCurrentYear] = useState<number | null>(null);
 
   useEffect(() => {
