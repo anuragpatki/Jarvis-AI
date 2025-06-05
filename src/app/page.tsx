@@ -386,7 +386,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     switch (commandResult.type) {
       case 'googleDoc':
         return (
-          <Card className="w-full"> {/* max-w-2xl was here, removed for parent to control width */}
+          <Card className="w-full"> 
             <CardHeader>
               <CardTitle className="flex items-center"><FileTextIcon className="mr-2 h-6 w-6 text-primary" />Generated Document Content</CardTitle>
               <CardDescription>Topic: {commandResult.topic}. A new Google Doc has opened. Copy the content below and paste it there.</CardDescription>
@@ -404,7 +404,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'emailDraft':
         return (
-          <Card className="w-full"> {/* max-w-2xl was here */}
+          <Card className="w-full"> 
             <CardHeader>
               <CardTitle className="flex items-center"><MailIcon className="mr-2 h-6 w-6 text-primary" />Generated Email Draft</CardTitle>
               <CardDescription>A Gmail compose window has been opened with this draft.</CardDescription>
@@ -419,7 +419,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'youtubeSearch':
         return (
-          <Card className="w-full"> {/* max-w-md was here */}
+          <Card className="w-full"> 
             <CardHeader>
                 <CardTitle className="flex items-center"><YoutubeIcon className="mr-2 h-6 w-6 text-red-600" />YouTube Search</CardTitle>
             </CardHeader>
@@ -431,7 +431,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'mapsSearch':
         return (
-          <Card className="w-full"> {/* max-w-md was here */}
+          <Card className="w-full"> 
             <CardHeader>
                 <CardTitle className="flex items-center"><MapPin className="mr-2 h-6 w-6 text-green-600" />Google Maps Search</CardTitle>
             </CardHeader>
@@ -443,7 +443,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'openWebsiteSearch':
         return (
-          <Card className="w-full"> {/* max-w-md was here */}
+          <Card className="w-full"> 
             <CardHeader>
                 <CardTitle className="flex items-center"><Globe className="mr-2 h-6 w-6 text-blue-500" />Open / Search</CardTitle>
             </CardHeader>
@@ -455,7 +455,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'geminiSearch':
         return (
-          <Card className="w-full"> {/* max-w-2xl was here */}
+          <Card className="w-full"> 
             <CardHeader>
               <CardTitle className="flex items-center"><SearchIcon className="mr-2 h-6 w-6 text-primary" />Search Result</CardTitle>
               <CardDescription>Query: "{commandResult.query}"</CardDescription>
@@ -470,7 +470,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'imageGenerated':
         return (
-          <Card className="w-full"> {/* max-w-2xl was here */}
+          <Card className="w-full"> 
             <CardHeader>
               <CardTitle className="flex items-center"><ImageIcon className="mr-2 h-6 w-6 text-primary" />Generated Image</CardTitle>
               <CardDescription>Prompt: "{commandResult.prompt}"</CardDescription>
@@ -499,7 +499,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'unknown':
         return (
-          <Card className="w-full border-orange-500/50"> {/* max-w-md was here */}
+          <Card className="w-full border-orange-500/50"> 
             <CardHeader>
               <CardTitle className="flex items-center"><InfoIcon className="mr-2 h-6 w-6 text-orange-500" />Request Not Understood</CardTitle>
             </CardHeader>
@@ -511,7 +511,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'error':
         return (
-          <Card className="w-full border-destructive/50"> {/* max-w-md was here */}
+          <Card className="w-full border-destructive/50"> 
              <CardHeader>
               <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Error</CardTitle>
             </CardHeader>
@@ -539,12 +539,12 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
           </div>
 
           {/* PARENT B: Scrollable Area. Takes remaining vertical space and provides padding. */}
-          {/* It is w-full of PARENT A. */}
-          <div className="flex-1 overflow-y-auto p-6 pt-16 md:pt-6 w-full">
+          {/* It is w-full of PARENT A. Uses flex to center its child both vertically and horizontally. */}
+          <div className="flex-1 flex flex-col justify-center items-center overflow-y-auto p-6 pt-16 md:pt-6 w-full">
             
-            {/* PARENT C: Content Block to be centered using mx-auto. */}
-            {/* This block has a max-width and contains all the Jarvis UI elements. */}
-            <div className="w-full max-w-3xl mx-auto">
+            {/* PARENT C: Content Block to be centered by PARENT B. */}
+            {/* This block has a max-width. mx-auto is for horizontal, PARENT B handles vertical. */}
+            <div className="w-full max-w-3xl mx-auto"> 
               {/* Inner wrapper for actual UI elements, using flex to center its own children. */}
               <div className="flex flex-col items-center space-y-6">
                 <header className="text-center">
@@ -582,7 +582,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
                 )}
 
                 {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
-                  <Card className="w-full"> {/* max-w-md removed, PARENT C controls width */}
+                  <Card className="w-full"> 
                     <CardHeader>
                       <CardTitle>Transcript</CardTitle>
                       <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
@@ -596,7 +596,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
                 )}
 
                 {commandResult && (
-                   <div className="w-full mt-4 animate-in fade-in duration-500"> {/* PARENT C controls width */}
+                   <div className="w-full mt-4 animate-in fade-in duration-500"> 
                       {renderCommandResult()}
                   </div>
                 )}
@@ -608,7 +608,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
                    </div>
                  )}
                 {speechSupport === 'unsupported' && (
-                   <Card className="w-full border-destructive/50 mt-4"> {/* max-w-md removed */}
+                   <Card className="w-full border-destructive/50 mt-4"> 
                        <CardHeader>
                         <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
                       </CardHeader>
@@ -632,3 +632,4 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     </div>
   );
 }
+
