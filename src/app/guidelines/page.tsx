@@ -23,7 +23,7 @@ export default function GuidelinesPage({ searchParams }: GuidelinesPageProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
+    <div className="w-screen flex items-center justify-center bg-background text-foreground p-4 md:p-8">
       <div className="max-w-4xl w-full mx-auto">
         <header className="mb-8 text-center">
            <div className="flex justify-center items-center mb-4">

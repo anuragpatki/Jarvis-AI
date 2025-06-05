@@ -543,8 +543,8 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         {/* Inner UI Wrapper for flex layout of Jarvis elements */}
         <div className="flex flex-col items-center space-y-6">
           <header className="text-center">
-            <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
-            <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
+            <h1 className="text-5xl font-bold text-primary font-headline">JARVIS - AI</h1>
+            <p className="text-muted-foreground mt-2">Your Voice-Powered AI Assistant</p>
           </header>
 
           <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
