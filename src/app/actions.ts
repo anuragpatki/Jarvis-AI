@@ -15,6 +15,7 @@ export type ProcessVoiceCommandOutput =
   | { type: 'geminiSearch'; query: string; result: string }
   | { type: 'imageGenerated'; imageDataUri: string; prompt: string }
   | { type: 'mapsSearch'; query: string }
+  | { type: 'openWebsiteSearch'; query: string }
   | { type: 'unknown'; message: string; transcript: string }
   | { type: 'error'; message: string };
 
@@ -24,6 +25,14 @@ export type HandleComposeEmailOutput =
 
 export async function processVoiceCommand(transcript: string): Promise<ProcessVoiceCommandOutput> {
   const lowerTranscript = transcript.toLowerCase();
+
+  // "Open [website/term]" command - should be fairly specific
+  if (lowerTranscript.startsWith('open ')) {
+    const query = transcript.substring('open '.length).trim();
+    if (query) {
+      return { type: 'openWebsiteSearch', query };
+    }
+  }
 
   if ((lowerTranscript.includes('generate') || lowerTranscript.includes('create')) && (lowerTranscript.includes('document') || lowerTranscript.includes('doc'))) {
     const match = lowerTranscript.match(/(?:generate|create)(?: a| an)? (?:document|doc) (?:about|on) (.+)/);

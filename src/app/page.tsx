@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin } from 'lucide-react';
+import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -89,6 +89,10 @@ export default function JarvisPage() {
         speakText(`Searching for ${result.query} on Google Maps.`);
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "Google Maps Search", description: `Searching for "${result.query}" on Google Maps.` });
+      } else if (result.type === 'openWebsiteSearch') {
+        speakText(`Okay, searching for ${result.query}.`);
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(result.query)}`, '_blank');
+        toast({ title: "Open / Search", description: `Searching for "${result.query}" to open.` });
       } else if (result.type === 'googleDoc') {
          speakText(`Document content generated for topic: ${result.topic}. Opening a new Google Doc. Please copy the content and paste it into the new document.`);
          window.open('https://docs.new', '_blank');
@@ -395,6 +399,18 @@ export default function JarvisPage() {
             <CardContent>
               <p>Searching Google Maps for: <span className="font-semibold">{commandResult.query}</span></p>
               <p className="text-sm text-muted-foreground">A new tab should have opened with the map results.</p>
+            </CardContent>
+          </Card>
+        );
+      case 'openWebsiteSearch':
+        return (
+          <Card className="w-full max-w-md">
+            <CardHeader>
+                <CardTitle className="flex items-center"><Globe className="mr-2 h-6 w-6 text-blue-500" />Open / Search</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Searching for: <span className="font-semibold">{commandResult.query}</span></p>
+              <p className="text-sm text-muted-foreground">A new tab should have opened with the Google search results.</p>
             </CardContent>
           </Card>
         );
