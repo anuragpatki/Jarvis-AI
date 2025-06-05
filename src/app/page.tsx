@@ -42,24 +42,22 @@ export default function JarvisPage() {
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
-        // Cancel any ongoing speech to prevent overlap
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(utterance);
       } catch (error) {
         console.error("Speech synthesis error:", error);
-        // Optionally toast if speech fails, but might be too noisy
-        // toast({ title: "Speech Synthesis Error", description: "Could not play voice feedback.", variant: "destructive" });
       }
     } else {
       console.warn("Speech synthesis not supported by this browser.");
     }
-  }, [toast]);
+  }, []);
 
 
   const resetState = useCallback(() => {
     setCurrentTranscript('');
     setFinalTranscript('');
+    finalTranscriptRef.current = '';
     setCommandResult(null);
     setIsLoading(false);
   }, []);
@@ -178,32 +176,43 @@ export default function JarvisPage() {
       if (transcriptToProcess) {
         processFinalTranscript(transcriptToProcess);
       } else {
-        // If no speech was captured, and it wasn't a manual stop, inform the user.
-        // This check prevents "No speech detected" if user manually stops before speaking.
-        if (isLoading && !currentTranscript) { // isLoading might be true if it was trying to process
-             // Already handled by onerror 'no-speech'
+         // If 'no-speech' error already handled this, no need to do anything here.
+         // Otherwise, if onend is called without a result and no error, it means a silent stop.
+        if (!isLoading && !currentTranscript && speechRecognitionRef.current?.onerror === null) { // Check if onerror has been cleared or if it was a silent stop
+            // This case might be redundant if 'no-speech' error is consistently caught
         }
         setIsLoading(false); 
       }
     };
 
     recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
       let description = "An error occurred during speech recognition.";
+      let title = "Speech Recognition Error";
+      let toastVariant: "default" | "destructive" = "destructive";
+
       if (event.error === 'no-speech') {
-        description = "No speech detected. Please ensure your microphone is working and try speaking clearly.";
+        title = "No Speech Detected";
+        description = "I didn't hear anything. Please ensure your microphone is working and try speaking clearly.";
+        toastVariant = "default";
+        // No console.error for 'no-speech' as it's handled by toast and voice feedback.
       } else if (event.error === 'audio-capture') {
+        console.error("Speech recognition error (audio-capture): Microphone issue or permissions. Event:", event);
         description = "Audio capture failed. Please check your microphone permissions and ensure it's connected.";
       } else if (event.error === 'not-allowed') {
+        console.error("Speech recognition error (not-allowed): Microphone access denied. Event:", event);
         description = "Microphone access was denied. Please allow microphone access in your browser settings.";
+      } else {
+        console.error(`Unexpected speech recognition error: ${event.error}. Event:`, event);
+        description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
       
       speakText(description);
       toast({
-        title: "Speech Recognition Error",
+        title: title,
         description: description,
-        variant: "destructive",
+        variant: toastVariant,
       });
+      
       setIsListening(false);
       setIsLoading(false);
       stopSoundRef.current?.play().catch(e => console.error("Error playing stop sound on error:", e));
@@ -211,15 +220,15 @@ export default function JarvisPage() {
 
     return () => {
       if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop(); 
         speechRecognitionRef.current.onstart = null;
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onend = null;
         speechRecognitionRef.current.onerror = null;
+        speechRecognitionRef.current.stop(); 
       }
-      window.speechSynthesis?.cancel(); // Stop any ongoing speech on unmount
+      window.speechSynthesis?.cancel(); 
     };
-  }, [toast, processFinalTranscript, speakText]);
+  }, [toast, processFinalTranscript, speakText]); // Dependencies should be stable callbacks
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -235,7 +244,6 @@ export default function JarvisPage() {
       // onend will handle setIsListening(false) and playing stop sound
     } else {
       resetState(); 
-      // onstart will set isListening = true, play start sound, and clear transcripts
       try {
         recognition.start();
       } catch (error) {
@@ -246,7 +254,7 @@ export default function JarvisPage() {
         }
         speakText(msg);
         toast({ title: "Recognition Error", description: msg, variant: "destructive" });
-        setIsListening(false); // Ensure UI consistency
+        setIsListening(false); 
       }
     }
   };
