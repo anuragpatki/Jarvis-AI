@@ -4,15 +4,14 @@
 
 import { composeEmailDraft, type ComposeEmailDraftInput } from '@/ai/flows/compose-email-draft';
 import { generateGoogleDoc } from '@/ai/flows/generate-google-doc';
-// EmailFormSchema and EmailFormData are now in src/lib/schemas.ts
-// Zod is not directly used here anymore for EmailFormSchema definition
-// import { z } from 'zod'; 
+import { searchWithGemini } from '@/ai/flows/search-with-gemini-flow';
 
-// Types are fine to export
+
 export type ProcessVoiceCommandOutput =
   | { type: 'googleDoc'; content: string; topic: string }
   | { type: 'emailComposeIntent' }
   | { type: 'youtubeSearch'; query: string }
+  | { type: 'geminiSearch'; query: string; result: string }
   | { type: 'unknown'; message: string; transcript: string }
   | { type: 'error'; message: string };
 
@@ -25,7 +24,7 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
 
   if ((lowerTranscript.includes('generate') || lowerTranscript.includes('create')) && (lowerTranscript.includes('document') || lowerTranscript.includes('doc'))) {
     const match = lowerTranscript.match(/(?:generate|create)(?: a| an)? (?:document|doc) (?:about|on) (.+)/);
-    const topic = match && match[1] ? match[1].trim() : transcript; // Fallback to full transcript if specific topic extraction fails
+    const topic = match && match[1] ? match[1].trim() : transcript.replace(/(generate|create) (a|an)? (document|doc) (about|on)/gi, '').trim();
     try {
       const result = await generateGoogleDoc({ topic });
       return { type: 'googleDoc', content: result.documentContent, topic };
@@ -56,13 +55,29 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
             break;
         }
     }
-     // Fallback if specific extraction failed but keywords present
     if (query === lowerTranscript) {
         query = query.replace(/search|find|look up|on youtube|youtube|for/gi, "").trim();
     }
 
     if (query) {
       return { type: 'youtubeSearch', query };
+    }
+  }
+
+  // Gemini Search - Catches "search for", "what is", "tell me about"
+  const searchKeywords = ['search for', 'what is', 'what are', 'tell me about', 'who is', 'who are', 'explain'];
+  for (const keyword of searchKeywords) {
+    if (lowerTranscript.startsWith(keyword + ' ')) {
+      const query = transcript.substring(keyword.length + 1).trim();
+      if (query) {
+        try {
+          const result = await searchWithGemini({ query });
+          return { type: 'geminiSearch', query, result: result.searchResult };
+        } catch (error) {
+          console.error("Error with Gemini search:", error);
+          return { type: 'error', message: `Failed to search for "${query}".` };
+        }
+      }
     }
   }
   
