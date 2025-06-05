@@ -529,7 +529,6 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     <div className="flex h-screen bg-background font-body">
       <AppSidebar />
       <SidebarInset>
-        {/* This div is the main container within SidebarInset. It will handle the overall flow and allow absolute positioning of the trigger. */}
         <div className="relative flex flex-col flex-grow w-full h-full overflow-hidden">
           {/* Sidebar Trigger (Burger Menu) */}
           <div className="absolute top-4 left-4 z-20">
@@ -539,78 +538,81 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
           </div>
 
           {/* Scrollable and Centered Content Area */}
-          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6">
+          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6 w-full">
             
-            <header className="text-center">
-              <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
-              <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
-            </header>
+            {/* Inner container for main content elements, responsible for its own centering and max-width */}
+            <div className="w-full max-w-3xl flex flex-col items-center space-y-6">
+              <header className="text-center">
+                <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
+                <p className="text-muted-foreground mt-2">Your Voice-Powered Assistant</p>
+              </header>
 
-            <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
-              <Mic
-                  className={`
-                      ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
-                      transition-colors duration-300
-                  `}
-                  size={80}
-                  strokeWidth={1.5}
-                  data-ai-hint="microphone sound"
-              />
-            </div>
-
-            <Button
-              onClick={handleToggleListen}
-              className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
-              variant={isListening ? "destructive" : "default"}
-              disabled={speechSupport !== 'supported' || isLoading}
-            >
-              {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
-              {isListening ? 'Stop Listening' : 'Start Listening'}
-            </Button>
-
-            {isLoading && (
-              <div className="flex items-center space-x-2 text-primary">
-                <Loader2 className="animate-spin h-6 w-6" />
-                <span>Processing your request...</span>
+              <div className={`mb-2 transition-all duration-300 ease-in-out transform ${isListening ? 'scale-110' : 'scale-100'}`}>
+                <Mic
+                    className={`
+                        ${isListening ? 'text-accent animate-pulse' : 'text-primary/70'}
+                        transition-colors duration-300
+                    `}
+                    size={80}
+                    strokeWidth={1.5}
+                    data-ai-hint="microphone sound"
+                />
               </div>
-            )}
 
-            {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
-              <Card className="w-full max-w-md">
-                <CardHeader>
-                  <CardTitle>Transcript</CardTitle>
-                  <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
-                  {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
-                  {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
-                </CardContent>
-              </Card>
-            )}
+              <Button
+                onClick={handleToggleListen}
+                className="w-56 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+                variant={isListening ? "destructive" : "default"}
+                disabled={speechSupport !== 'supported' || isLoading}
+              >
+                {isListening ? <MicOff className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
+                {isListening ? 'Stop Listening' : 'Start Listening'}
+              </Button>
 
-            {commandResult && (
-               <div className="w-full max-w-2xl mt-4 animate-in fade-in duration-500">
-                  {renderCommandResult()}
-              </div>
-            )}
+              {isLoading && (
+                <div className="flex items-center space-x-2 text-primary">
+                  <Loader2 className="animate-spin h-6 w-6" />
+                  <span>Processing your request...</span>
+                </div>
+              )}
 
-            {speechSupport === 'pending' && !isLoading && (
-               <div className="flex items-center space-x-2 text-primary mt-4">
-                 <Loader2 className="animate-spin h-6 w-6" />
-                 <span>Checking voice support...</span>
-               </div>
-             )}
-            {speechSupport === 'unsupported' && (
-               <Card className="w-full max-w-md border-destructive/50 mt-4">
-                   <CardHeader>
-                    <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+              {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
+                <Card className="w-full max-w-md">
+                  <CardHeader>
+                    <CardTitle>Transcript</CardTitle>
+                    <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+                    {isListening && currentTranscript && <p className="text-sm text-muted-foreground"><em>Listening: {currentTranscript}</em></p>}
+                    {finalTranscript && !isListening && <p className="text-sm text-foreground">Processed: "{finalTranscript}"</p>}
+                    {!isListening && !finalTranscript && currentTranscript && <p className="text-xs text-muted-foreground mt-1">Interim: {currentTranscript}</p>}
                   </CardContent>
                 </Card>
-            )}
+              )}
+
+              {commandResult && (
+                 <div className="w-full max-w-2xl mt-4 animate-in fade-in duration-500">
+                    {renderCommandResult()}
+                </div>
+              )}
+
+              {speechSupport === 'pending' && !isLoading && (
+                 <div className="flex items-center space-x-2 text-primary mt-4">
+                   <Loader2 className="animate-spin h-6 w-6" />
+                   <span>Checking voice support...</span>
+                 </div>
+               )}
+              {speechSupport === 'unsupported' && (
+                 <Card className="w-full max-w-md border-destructive/50 mt-4">
+                     <CardHeader>
+                      <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p>Your browser does not support the Speech Recognition API. Please try a different browser like Chrome or Edge.</p>
+                    </CardContent>
+                  </Card>
+              )}
+            </div> {/* End of inner container for main content elements */}
           </div> {/* End of scrollable/centered content area */}
         </div> {/* End of main container in SidebarInset */}
         
@@ -624,3 +626,4 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     </div>
   );
 }
+
