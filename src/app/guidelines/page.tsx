@@ -1,10 +1,19 @@
 // src/app/guidelines/page.tsx
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileTextIcon, YoutubeIcon, MailIcon, SearchIcon, ImageIcon, MapPin, Globe, BotMessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function GuidelinesPage() {
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -150,7 +159,9 @@ export default function GuidelinesPage() {
         </div>
 
         <footer className="text-center mt-12 py-4 border-t border-border">
-          <p className="text-sm text-muted-foreground">&copy; ${new Date().getFullYear()} Jarvis AI Assistant. </p>
+          <p className="text-sm text-muted-foreground">
+            &copy; {currentYear !== null ? currentYear : 'Loading...'} Jarvis AI Assistant.
+          </p>
         </footer>
       </div>
     </div>
