@@ -5,6 +5,7 @@
 import { composeEmailDraft, type ComposeEmailDraftInput } from '@/ai/flows/compose-email-draft';
 import { generateGoogleDoc } from '@/ai/flows/generate-google-doc';
 import { searchWithGemini } from '@/ai/flows/search-with-gemini-flow.ts';
+import { generateImage } from '@/ai/flows/generate-image-flow';
 
 
 export type ProcessVoiceCommandOutput =
@@ -12,6 +13,7 @@ export type ProcessVoiceCommandOutput =
   | { type: 'emailComposeIntent' }
   | { type: 'youtubeSearch'; query: string }
   | { type: 'geminiSearch'; query: string; result: string }
+  | { type: 'imageGenerated'; imageDataUri: string; prompt: string }
   | { type: 'unknown'; message: string; transcript: string }
   | { type: 'error'; message: string };
 
@@ -66,8 +68,25 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
     }
   }
 
+  // Image Generation - "create an image of X", "generate a picture of Y"
+  const imageKeywords = ['create an image of', 'generate an image of', 'make an image of', 'create a picture of', 'generate a picture of', 'make a picture of', 'draw a picture of', 'draw an image of'];
+  for (const keyword of imageKeywords) {
+    if (lowerTranscript.startsWith(keyword + ' ')) {
+      const prompt = transcript.substring(keyword.length + 1).trim();
+      if (prompt) {
+        try {
+          const result = await generateImage({ prompt });
+          return { type: 'imageGenerated', imageDataUri: result.imageDataUri, prompt: result.prompt };
+        } catch (error) {
+          console.error("Error generating image:", error);
+          return { type: 'error', message: `Failed to generate image for "${prompt}". Error: ${(error as Error).message}` };
+        }
+      }
+    }
+  }
+
   // Gemini Search - Catches "search for", "what is", "tell me about" etc.
-  // This should be evaluated after more specific commands.
+  // This should be evaluated after more specific commands like image generation.
   const searchKeywords = ['search for', 'what is', 'what are', 'tell me about', 'who is', 'who are', 'explain', 'define'];
   for (const keyword of searchKeywords) {
     if (lowerTranscript.startsWith(keyword + ' ')) {
@@ -97,6 +116,7 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
         }
       }
   }
+
 
   return { type: 'unknown', message: "I'm not sure how to handle this request.", transcript };
 }
