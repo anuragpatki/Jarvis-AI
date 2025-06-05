@@ -69,7 +69,18 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
   }
 
   // Image Generation - "create an image of X", "generate a picture of Y"
-  const imageKeywords = ['create an image of', 'generate an image of', 'make an image of', 'create a picture of', 'generate a picture of', 'make a picture of', 'draw a picture of', 'draw an image of'];
+  const imageKeywords = [
+    'create an image of', 'create a image of',
+    'generate an image of', 'generate a image of',
+    'make an image of', 'make a image of',
+    'draw an image of', 'draw a image of',
+    'create a picture of', 'generate a picture of',
+    'make a picture of', 'draw a picture of',
+    'create a photo of', 'generate a photo of',
+    'make a photo of', 'draw a photo of',
+    'show me an image of', 'show me a picture of', 'show me a photo of',
+    'i want an image of', 'i want a picture of', 'i want a photo of'
+  ];
   for (const keyword of imageKeywords) {
     if (lowerTranscript.startsWith(keyword + ' ')) {
       const prompt = transcript.substring(keyword.length + 1).trim();
@@ -130,3 +141,4 @@ export async function handleComposeEmail(data: ComposeEmailDraftInput): Promise<
     return { type: 'error', message: 'Failed to compose email draft.' };
   }
 }
+
