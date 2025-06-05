@@ -4,7 +4,7 @@
 
 import { composeEmailDraft, type ComposeEmailDraftInput } from '@/ai/flows/compose-email-draft';
 import { generateGoogleDoc } from '@/ai/flows/generate-google-doc';
-import { searchWithGemini } from '@/ai/flows/search-with-gemini-flow';
+import { searchWithGemini } from '@/ai/flows/search-with-gemini-flow.ts';
 
 
 export type ProcessVoiceCommandOutput =
@@ -15,7 +15,7 @@ export type ProcessVoiceCommandOutput =
   | { type: 'unknown'; message: string; transcript: string }
   | { type: 'error'; message: string };
 
-export type HandleComposeEmailOutput = 
+export type HandleComposeEmailOutput =
   | { type: 'emailDraft'; draft: string }
   | { type: 'error'; message: string };
 
@@ -25,12 +25,14 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
   if ((lowerTranscript.includes('generate') || lowerTranscript.includes('create')) && (lowerTranscript.includes('document') || lowerTranscript.includes('doc'))) {
     const match = lowerTranscript.match(/(?:generate|create)(?: a| an)? (?:document|doc) (?:about|on) (.+)/);
     const topic = match && match[1] ? match[1].trim() : transcript.replace(/(generate|create) (a|an)? (document|doc) (about|on)/gi, '').trim();
-    try {
-      const result = await generateGoogleDoc({ topic });
-      return { type: 'googleDoc', content: result.documentContent, topic };
-    } catch (error) {
-      console.error("Error generating Google Doc:", error);
-      return { type: 'error', message: 'Failed to generate document content.' };
+    if (topic) {
+      try {
+        const result = await generateGoogleDoc({ topic });
+        return { type: 'googleDoc', content: result.documentContent, topic };
+      } catch (error) {
+        console.error("Error generating Google Doc:", error);
+        return { type: 'error', message: 'Failed to generate document content.' };
+      }
     }
   }
 
@@ -39,15 +41,15 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
         return { type: 'emailComposeIntent' };
      }
   }
-  
+
   if (lowerTranscript.includes('youtube') && (lowerTranscript.includes('search') || lowerTranscript.includes('find') || lowerTranscript.includes('look up'))) {
     let query = lowerTranscript;
     const patterns = [
         /(?:search|find|look up) (?:on youtube |youtube )?for (.+)/,
         /(?:search|find|look up) (.+) on youtube/,
-        /youtube (.+)/ 
+        /youtube (.+)/
     ];
-    
+
     for (const pattern of patterns) {
         const match = lowerTranscript.match(pattern);
         if (match && match[1]) {
@@ -55,7 +57,7 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
             break;
         }
     }
-    if (query === lowerTranscript) {
+    if (query === lowerTranscript) { // If no pattern matched, try to clean up common words
         query = query.replace(/search|find|look up|on youtube|youtube|for/gi, "").trim();
     }
 
@@ -64,8 +66,9 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
     }
   }
 
-  // Gemini Search - Catches "search for", "what is", "tell me about"
-  const searchKeywords = ['search for', 'what is', 'what are', 'tell me about', 'who is', 'who are', 'explain'];
+  // Gemini Search - Catches "search for", "what is", "tell me about" etc.
+  // This should be evaluated after more specific commands.
+  const searchKeywords = ['search for', 'what is', 'what are', 'tell me about', 'who is', 'who are', 'explain', 'define'];
   for (const keyword of searchKeywords) {
     if (lowerTranscript.startsWith(keyword + ' ')) {
       const query = transcript.substring(keyword.length + 1).trim();
@@ -81,6 +84,20 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
     }
   }
   
+  // A more general "search" or "find" command as a fallback if no specific keywords like "what is" were used
+  if (lowerTranscript.startsWith('search ') || lowerTranscript.startsWith('find ')) {
+    const query = transcript.substring(transcript.indexOf(' ') + 1).trim();
+     if (query) {
+        try {
+          const result = await searchWithGemini({ query });
+          return { type: 'geminiSearch', query, result: result.searchResult };
+        } catch (error) {
+          console.error("Error with general Gemini search:", error);
+          return { type: 'error', message: `Failed to search for "${query}".` };
+        }
+      }
+  }
+
   return { type: 'unknown', message: "I'm not sure how to handle this request.", transcript };
 }
 
