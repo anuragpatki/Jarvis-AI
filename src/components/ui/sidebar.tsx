@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -70,8 +71,6 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
-    // This is the internal state of the sidebar.
-    // We use openProp and setOpenProp for control from outside the component.
     const [_open, _setOpen] = React.useState(defaultOpen)
     const open = openProp ?? _open
     const setOpen = React.useCallback(
@@ -82,21 +81,22 @@ const SidebarProvider = React.forwardRef<
         } else {
           _setOpen(openState)
         }
-
-        // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        if (!isMobile) { // Only set cookie for desktop state
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        }
       },
-      [setOpenProp, open]
+      [setOpenProp, open, isMobile]
     )
 
-    // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
-      return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
+      // For offcanvas (which uses 'open' state), or desktop 'icon' mode:
+      if (isMobile) { // Mobile always toggles its own sheet state
+        setOpenMobile((current) => !current);
+      } else { // Desktop toggles the main 'open' state
+        setOpen((current) => !current);
+      }
     }, [isMobile, setOpen, setOpenMobile])
 
-    // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
         if (
@@ -112,8 +112,6 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
-    // We add a state so that we can do data-state="expanded" or "collapsed".
-    // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
 
     const contextValue = React.useMemo<SidebarContext>(
@@ -168,37 +166,51 @@ const Sidebar = React.forwardRef<
     {
       side = "left",
       variant = "sidebar",
-      collapsible = "offcanvas",
+      collapsible = "icon", // Default to icon if not specified
       className,
       children,
-      ...props
+      ...props // These are div props for the desktop icon/none wrapper
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { open, setOpen, isMobile, openMobile, setOpenMobile, state: desktopIconCollapseState } = useSidebar()
 
-    if (collapsible === "none") {
+    if (collapsible === "offcanvas") {
+      // Offcanvas always uses Sheet, controlled by 'open' and 'setOpen' from context.
+      // 'variant' prop is mostly ignored here.
+      // The 'openMobile' and 'setOpenMobile' are not used for offcanvas desktop.
+      // 'toggleSidebar' handles the correct state toggle.
       return (
-        <div
-          className={cn(
-            "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
-            className
-          )}
-          ref={ref}
-          {...props}
-        >
-          {children}
-        </div>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetContent
+            data-sidebar="sidebar"
+            className={cn(
+              "w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
+              className // Allow overriding SheetContent classes if needed from AppSidebar
+            )}
+            style={
+              {
+                "--sidebar-width": SIDEBAR_WIDTH_MOBILE, // Offcanvas typically uses a mobile-friendly width
+              } as React.CSSProperties
+            }
+            side={side}
+            // Do not pass ...props here as they are meant for the div wrapper in other modes
+          >
+            <div className="flex h-full w-full flex-col">{children}</div>
+          </SheetContent>
+        </Sheet>
       )
     }
 
+    // If not "offcanvas":
+    // Mobile view (for "icon" or "none" collapsible types) always uses a Sheet.
     if (isMobile) {
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className={cn("w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden", className)}
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -211,21 +223,39 @@ const Sidebar = React.forwardRef<
         </Sheet>
       )
     }
+    
+    // Desktop view, for "icon" or "none" collapsible types
+    if (collapsible === "none") {
+      return (
+        <div
+          ref={ref} // Apply ref here for "none" variant
+          className={cn(
+            "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
+            className
+          )}
+          {...props} // Apply div props
+        >
+          {children}
+        </div>
+      )
+    }
 
+    // Desktop view, for "icon" collapsible type (default non-offcanvas, non-mobile)
+    // This is the div that creates space on desktop for a pinned-then-collapsible sidebar
     return (
       <div
         ref={ref}
-        className="group peer hidden md:block text-sidebar-foreground"
-        data-state={state}
-        data-collapsible={state === "collapsed" ? collapsible : ""}
+        className={cn("group peer hidden md:block text-sidebar-foreground", className)}
+        data-state={desktopIconCollapseState} // This state comes from 'open'
+        data-collapsible={desktopIconCollapseState === "collapsed" ? "icon" : ""}
         data-variant={variant}
         data-side={side}
+        {...props} // Apply div props to this wrapper
       >
-        {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
             "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
+            "group-data-[collapsible=offcanvas]:w-0", // This class won't apply due to earlier return for offcanvas
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
               ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
@@ -236,15 +266,13 @@ const Sidebar = React.forwardRef<
           className={cn(
             "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
             side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
+              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]" // Won't apply
+              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]", // Won't apply
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            className
+              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l"
+            // Removed className from here as it's on the parent div
           )}
-          {...props}
         >
           <div
             data-sidebar="sidebar"
@@ -262,7 +290,7 @@ Sidebar.displayName = "Sidebar"
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
+>(({ className, onClick, children, ...props }, ref) => {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -278,7 +306,7 @@ const SidebarTrigger = React.forwardRef<
       }}
       {...props}
     >
-      <PanelLeft />
+      {children || <PanelLeft />} {/* Allow children to override, default to PanelLeft */}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
@@ -761,3 +789,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
