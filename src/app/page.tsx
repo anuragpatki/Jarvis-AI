@@ -7,7 +7,7 @@ import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangl
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Toaster } from '@/components/ui/toaster';
+// import { Toaster } from '@/components/ui/toaster'; // Already in layout
 import { useToast } from '@/hooks/use-toast';
 import { processVoiceCommand, handleComposeEmail, type ProcessVoiceCommandOutput, type HandleComposeEmailOutput } from './actions';
 import EmailDialog from '@/components/jarvis/email-dialog';
@@ -43,7 +43,7 @@ export default function JarvisPage() {
   const stopSoundRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const { addHistoryItem } = useHistory();
-  const { isMobile } = useSidebar();
+  // const { isMobile } = useSidebar(); // isMobile can be removed if not directly used for className logic here
 
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -120,15 +120,21 @@ export default function JarvisPage() {
       } else if (result.type === 'unknown') {
         speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
-         // historyEntry.transcript is already set
+         historyEntry.transcript = result.transcript; // Use the transcript from the result
       } else if (result.type === 'error') {
         speakText(`An error occurred: ${result.message}`);
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
       
-      if (result.type) { // Add to history if a type was determined
+      // Ensure all relevant fields are populated for the history entry
+      if (result.type && result.type !== 'processing') {
+        if ('query' in result && result.query) historyEntry.query = result.query;
+        if ('topic' in result && result.topic) historyEntry.topic = result.topic;
+        if ('prompt' in result && result.prompt) historyEntry.prompt = result.prompt;
+        if ('transcript' in result && result.transcript && result.type === 'unknown') historyEntry.transcript = result.transcript; // Ensure unknown transcript is set
         addHistoryItem(historyEntry);
       }
+
 
     } catch (error) {
       console.error("Error processing voice command:", error);
@@ -136,8 +142,8 @@ export default function JarvisPage() {
       speakText(errorMessage);
       toast({ title: "Processing Error", description: errorMessage, variant: "destructive" });
       setCommandResult({type: 'error', message: errorMessage});
-      historyEntry.actionType = 'error'; // Set actionType for error
-      addHistoryItem(historyEntry); // Log error to history
+      historyEntry.actionType = 'error';
+      addHistoryItem(historyEntry);
     } finally {
       setIsLoading(false);
     }
@@ -241,7 +247,6 @@ export default function JarvisPage() {
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
 
-      // No speakText(description) here for 'no-speech' to avoid repetitive announcements
       if (event.error !== 'no-speech') {
         speakText(description);
       }
@@ -268,7 +273,7 @@ export default function JarvisPage() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText]);
+  }, [toast, processFinalTranscript, speakText]); // Removed addHistoryItem from here as it's inside processFinalTranscript
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -304,8 +309,7 @@ export default function JarvisPage() {
     setShowEmailDialog(false);
     const historyBase = { transcript: `Email to ${data.recipient} about "${data.subject}"`, query: data.intention };
     let historyEntry: Parameters<typeof addHistoryItem>[0] = {
-      transcript: historyBase.transcript,
-      query: historyBase.query,
+      ...historyBase,
       actionType: 'processingEmail'
     };
 
@@ -522,17 +526,15 @@ export default function JarvisPage() {
     <div className="flex h-screen bg-background font-body">
       <AppSidebar />
       <SidebarInset>
-        {/* This div wraps the trigger and the main scrollable content */}
-        <div className="relative flex flex-col flex-grow min-h-0"> {/* Use flex-grow and min-h-0 for proper flex behavior */}
+        <div className="relative flex flex-col flex-grow min-h-0">
           <div className="absolute top-4 left-4 z-20">
-             {/* SidebarTrigger's visibility is controlled by its own responsive logic or props if needed */}
-            <SidebarTrigger className={isMobile ? '' : 'md:hidden'}> {/* This keeps existing behavior: trigger on mobile, hidden on desktop */}
+            {/* SidebarTrigger is now always visible to toggle sidebar on all screen sizes */}
+            <SidebarTrigger>
                 <Menu />
             </SidebarTrigger>
           </div>
 
-          {/* Main scrollable content area, centered */}
-          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6"> {/* Added pt-16 for mobile to not overlap with trigger */}
+          <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-6 overflow-y-auto pt-16 md:pt-6">
             
             <header className="text-center">
               <h1 className="text-5xl font-bold text-primary font-headline">Jarvis</h1>
@@ -604,8 +606,8 @@ export default function JarvisPage() {
                   </CardContent>
                 </Card>
             )}
-          </div> {/* End of main scrollable content area */}
-        </div> {/* End of wrapper for trigger and scrollable content */}
+          </div> 
+        </div> 
         
         <EmailDialog
           open={showEmailDialog}
@@ -613,9 +615,8 @@ export default function JarvisPage() {
           onSubmit={handleEmailDialogSubmit}
           initialIntention={initialEmailIntention}
         />
-        {/* Toaster should ideally be in RootLayout to cover all pages/dialogs globally */}
-        {/* <Toaster /> */} 
       </SidebarInset>
     </div>
   );
 }
+
