@@ -14,7 +14,7 @@ import EmailDialog from '@/components/jarvis/email-dialog';
 import type { EmailFormData } from '@/lib/schemas';
 import Image from 'next/image';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { useHistory } from '@/hooks/useHistory';
+import type { HistoryItem } from '@/hooks/useHistory';
 
 
 declare global {
@@ -27,11 +27,12 @@ declare global {
 interface JarvisPageProps {
   params?: Record<string, string | string[]>;
   searchParams?: { [key: string]: string | string[] | undefined };
+  addHistoryItem?: (itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => void; // Prop from RootLayout
 }
 
-const SIDEBAR_OFFCANVAS_WIDTH = "18rem"; // Matches SIDEBAR_WIDTH_MOBILE in ui/sidebar.tsx
+const SIDEBAR_OFFCANVAS_WIDTH = "18rem";
 
-export default function JarvisPage({ searchParams }: JarvisPageProps) {
+export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageProps) {
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
@@ -48,13 +49,12 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   const startSoundRef = useRef<HTMLAudioElement | null>(null);
   const stopSoundRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
-  const { addHistoryItem } = useHistory();
-  const { open: isSidebarOpen, toggleSidebar } = useSidebar(); // Use 'open' for offcanvas state
+  const { open: isSidebarOpen, toggleSidebar } = useSidebar();
 
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
-        window.speechSynthesis.cancel(); 
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(utterance);
       } catch (error) {
@@ -74,6 +74,14 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     setIsLoading(false);
   }, []);
 
+  const logHistory = useCallback((details: Omit<HistoryItem, 'id' | 'timestamp'>) => {
+    if (addHistoryItem) {
+      addHistoryItem(details);
+    } else {
+      console.warn("addHistoryItem function not available on JarvisPage");
+    }
+  }, [addHistoryItem]);
+
   const processFinalTranscript = useCallback(async (text: string) => {
     if (!text.trim()) {
       setIsLoading(false);
@@ -83,62 +91,59 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     setCommandResult(null);
     setIsLoading(true);
     setFinalTranscript(text);
-    let historyEntry: Parameters<typeof addHistoryItem>[0] = { transcript: text, actionType: 'processing' };
+    let historyEntryBase: Omit<HistoryItem, 'id' | 'timestamp' | 'actionType'> = { transcript: text };
+    let actionTypeForHistory: HistoryItem['actionType'] = 'processing';
+
 
     try {
       const result = await processVoiceCommand(text);
       setCommandResult(result);
-      historyEntry.actionType = result.type;
+      actionTypeForHistory = result.type;
+
 
       if (result.type === 'emailComposeIntent') {
         speakText("Please provide email details.");
         setInitialEmailIntention(text);
         setShowEmailDialog(true);
-         historyEntry.query = text;
+        historyEntryBase.query = text;
       } else if (result.type === 'youtubeSearch') {
         speakText(`Searching YouTube for ${result.query}.`);
         window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "YouTube Search", description: `Searching for "${result.query}" on YouTube.` });
-        historyEntry.query = result.query;
+        historyEntryBase.query = result.query;
       } else if (result.type === 'mapsSearch') {
         speakText(`Searching for ${result.query} on Google Maps.`);
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "Google Maps Search", description: `Searching for "${result.query}" on Google Maps.` });
-        historyEntry.query = result.query;
+        historyEntryBase.query = result.query;
       } else if (result.type === 'openWebsiteSearch') {
         speakText(`Okay, searching for ${result.query}.`);
         window.open(`https://www.google.com/search?q=${encodeURIComponent(result.query)}`, '_blank');
         toast({ title: "Open / Search", description: `Searching for "${result.query}" to open.` });
-        historyEntry.query = result.query;
+        historyEntryBase.query = result.query;
       } else if (result.type === 'googleDoc') {
          speakText(`Document content generated for topic: ${result.topic}. Opening a new Google Doc. Please copy the content and paste it into the new document.`);
          window.open('https://docs.new', '_blank');
          toast({ title: "Document Generated", description: `Content for topic "${result.topic}" generated. A new Google Doc is opening. Copy the content below.`});
-         historyEntry.topic = result.topic;
+         historyEntryBase.topic = result.topic;
       } else if (result.type === 'geminiSearch') {
         speakText(`Here's what I found about ${result.query}.`);
         toast({ title: `Search Results for "${result.query}"`, description: "Displaying results from Gemini below." });
-        historyEntry.query = result.query;
+        historyEntryBase.query = result.query;
       } else if (result.type === 'imageGenerated') {
         speakText(`Okay, I've generated an image for: ${result.prompt}.`);
         toast({ title: "Image Generated", description: `Image for "${result.prompt}" is displayed below.` });
-        historyEntry.prompt = result.prompt;
+        historyEntryBase.prompt = result.prompt;
       } else if (result.type === 'unknown') {
         speakText(result.message);
         toast({ title: "Request Not Understood", description: result.message, variant: "default" });
-         historyEntry.transcript = result.transcript;
+         historyEntryBase.transcript = result.transcript; // Ensure full transcript for unknown is available
       } else if (result.type === 'error') {
         speakText(`An error occurred: ${result.message}`);
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
-      
-      if (result.type && result.type !== 'processing') {
-        if ('query' in result && result.query) historyEntry.query = result.query;
-        if ('topic' in result && result.topic) historyEntry.topic = result.topic;
-        if ('prompt' in result && result.prompt) historyEntry.prompt = result.prompt;
-        if ('transcript' in result && result.type === 'unknown' && result.transcript) historyEntry.transcript = result.transcript;
-      }
-      addHistoryItem(historyEntry);
+
+      logHistory({ ...historyEntryBase, actionType: actionTypeForHistory });
 
 
     } catch (error) {
@@ -147,12 +152,11 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       speakText(errorMessage);
       toast({ title: "Processing Error", description: errorMessage, variant: "destructive" });
       setCommandResult({type: 'error', message: errorMessage});
-      historyEntry.actionType = 'error';
-      addHistoryItem(historyEntry);
+      logHistory({ ...historyEntryBase, actionType: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, [toast, setInitialEmailIntention, setShowEmailDialog, speakText, addHistoryItem]);
+  }, [toast, setInitialEmailIntention, setShowEmailDialog, speakText, logHistory]);
 
 
   useEffect(() => {
@@ -278,7 +282,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText, addHistoryItem]);
+  }, [toast, processFinalTranscript, speakText, logHistory]); // Added logHistory dependency
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -312,35 +316,35 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   const handleEmailDialogSubmit = async (data: EmailFormData) => {
     setIsLoading(true);
     setShowEmailDialog(false);
-    const historyBase = { transcript: `Email to ${data.recipient} about "${data.subject}"`, query: data.intention };
-    let historyEntry: Parameters<typeof addHistoryItem>[0] = {
-      ...historyBase,
-      actionType: 'processingEmail'
+    const historyBase: Omit<HistoryItem, 'id' | 'timestamp' | 'actionType'> = {
+      transcript: `Email to ${data.recipient} about "${data.subject}"`,
+      query: data.intention
     };
+    let actionTypeForHistory: HistoryItem['actionType'] = 'processingEmail';
+
 
     try {
       const result = await handleComposeEmail(data);
       setCommandResult(result);
       if (result.type === 'emailDraft') {
+        actionTypeForHistory = 'emailDraft';
         speakText("Email draft generated. Opening Gmail.");
         const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(data.recipient)}&su=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(result.draft)}`;
         window.open(gmailUrl, '_blank');
         toast({ title: "Email Draft Generated", description: "Your email draft is ready below. A Gmail compose window has also opened.", icon: <CheckCircleIcon className="h-5 w-5 text-green-500" /> });
-        historyEntry.actionType = 'emailDraft';
       } else {
+        actionTypeForHistory = 'error';
         speakText(`Failed to compose email draft. ${result.message}`);
         toast({ title: "Email Generation Error", description: result.message, variant: "destructive" });
-        historyEntry.actionType = 'error';
       }
-      addHistoryItem(historyEntry);
+      logHistory({ ...historyBase, actionType: actionTypeForHistory });
     } catch (error) {
       console.error("Error submitting email form:", error);
       const errorMsg = "Failed to generate email draft.";
       speakText(errorMsg);
       toast({ title: "Submission Error", description: errorMsg, variant: "destructive" });
       setCommandResult({type: 'error', message: 'Failed to submit email form.'});
-      historyEntry.actionType = 'error';
-      addHistoryItem(historyEntry);
+      logHistory({ ...historyBase, actionType: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -388,7 +392,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     switch (commandResult.type) {
       case 'googleDoc':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
               <CardTitle className="flex items-center"><FileTextIcon className="mr-2 h-6 w-6 text-primary" />Generated Document Content</CardTitle>
               <CardDescription>Topic: {commandResult.topic}. A new Google Doc has opened. Copy the content below and paste it there.</CardDescription>
@@ -406,7 +410,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'emailDraft':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
               <CardTitle className="flex items-center"><MailIcon className="mr-2 h-6 w-6 text-primary" />Generated Email Draft</CardTitle>
               <CardDescription>A Gmail compose window has been opened with this draft.</CardDescription>
@@ -421,7 +425,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'youtubeSearch':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
                 <CardTitle className="flex items-center"><YoutubeIcon className="mr-2 h-6 w-6 text-red-600" />YouTube Search</CardTitle>
             </CardHeader>
@@ -433,7 +437,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'mapsSearch':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
                 <CardTitle className="flex items-center"><MapPin className="mr-2 h-6 w-6 text-green-600" />Google Maps Search</CardTitle>
             </CardHeader>
@@ -445,7 +449,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'openWebsiteSearch':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
                 <CardTitle className="flex items-center"><Globe className="mr-2 h-6 w-6 text-blue-500" />Open / Search</CardTitle>
             </CardHeader>
@@ -457,7 +461,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'geminiSearch':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
               <CardTitle className="flex items-center"><SearchIcon className="mr-2 h-6 w-6 text-primary" />Search Result</CardTitle>
               <CardDescription>Query: "{commandResult.query}"</CardDescription>
@@ -472,7 +476,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'imageGenerated':
         return (
-          <Card className="w-full"> 
+          <Card className="w-full">
             <CardHeader>
               <CardTitle className="flex items-center"><ImageIcon className="mr-2 h-6 w-6 text-primary" />Generated Image</CardTitle>
               <CardDescription>Prompt: "{commandResult.prompt}"</CardDescription>
@@ -501,7 +505,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'unknown':
         return (
-          <Card className="w-full border-orange-500/50"> 
+          <Card className="w-full border-orange-500/50">
             <CardHeader>
               <CardTitle className="flex items-center"><InfoIcon className="mr-2 h-6 w-6 text-orange-500" />Request Not Understood</CardTitle>
             </CardHeader>
@@ -513,7 +517,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         );
       case 'error':
         return (
-          <Card className="w-full border-destructive/50"> 
+          <Card className="w-full border-destructive/50">
              <CardHeader>
               <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Error</CardTitle>
             </CardHeader>
@@ -529,21 +533,18 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
 
   return (
     <div className="h-screen w-screen flex items-center justify-center p-4 bg-background font-body">
-      {/* Burger Menu Trigger - Positioned fixed and dynamically moves with sidebar */}
        <SidebarTrigger
         onClick={toggleSidebar}
         className={`fixed top-4 z-50 transition-transform duration-300 ease-in-out
                     ${isSidebarOpen ? `translate-x-[${SIDEBAR_OFFCANVAS_WIDTH}]` : 'translate-x-0'}`}
-        style={{ left: '1rem' }} 
+        style={{ left: '1rem' }}
       >
         {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </SidebarTrigger>
-      
-      {/* PARENT C: This div is the main content block that gets centered */}
+
       <div className="w-full max-w-3xl mx-auto">
-        {/* Inner UI Wrapper for flex layout of Jarvis elements */}
         <div className="flex flex-col items-center space-y-6">
-          
+
           <Button
             asChild
             className="mb-4 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 hover:from-blue-700 hover:via-sky-600 hover:to-cyan-500 text-white font-semibold py-2 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
@@ -589,7 +590,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
           )}
 
           {(currentTranscript || finalTranscript) && !commandResult && !isLoading && (
-            <Card className="w-full"> 
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle>Transcript</CardTitle>
                 <CardDescription>What Jarvis is hearing or has processed...</CardDescription>
@@ -603,7 +604,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
           )}
 
           {commandResult && (
-              <div className="w-full mt-4 animate-in fade-in duration-500"> 
+              <div className="w-full mt-4 animate-in fade-in duration-500">
                 {renderCommandResult()}
             </div>
           )}
@@ -615,7 +616,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
               </div>
             )}
           {speechSupport === 'unsupported' && (
-              <Card className="w-full border-destructive/50 mt-4"> 
+              <Card className="w-full border-destructive/50 mt-4">
                   <CardHeader>
                   <CardTitle className="flex items-center"><AlertTriangleIcon className="mr-2 h-6 w-6 text-destructive" />Voice Input Not Supported</CardTitle>
                 </CardHeader>
@@ -624,9 +625,9 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
                 </CardContent>
               </Card>
           )}
-        </div> {/* End of Inner UI Wrapper */}
-      </div> {/* End of PARENT C */}
-      
+        </div>
+      </div>
+
       <EmailDialog
         open={showEmailDialog}
         onOpenChange={setShowEmailDialog}
@@ -636,5 +637,3 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     </div>
   );
 }
-
-    

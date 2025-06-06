@@ -8,16 +8,13 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  // SidebarMenu, // Removed
-  // SidebarMenuItem, // Removed
-  // SidebarMenuButton, // Removed
-  // SidebarSeparator, // Removed
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { HistoryIcon, Trash2, BotMessageSquare } from 'lucide-react'; // BookOpen removed as button is moved
-import { useHistory, type HistoryItem } from '@/hooks/useHistory';
+import { HistoryIcon, Trash2, BotMessageSquare, BookOpen } from 'lucide-react';
+import Link from 'next/link';
+import type { HistoryItem } from '@/hooks/useHistory'; // Import HistoryItem type
 import { Badge } from '@/components/ui/badge';
 
 function getActionTypeFriendlyName(actionType: string): string {
@@ -32,31 +29,49 @@ function getActionTypeFriendlyName(actionType: string): string {
     case 'openWebsiteSearch': return 'Open Web';
     case 'unknown': return 'Unknown';
     case 'error': return 'Error';
-    case 'processing': return 'Processing...'; 
-    case 'processingEmail': return 'Gen Email...'; 
+    case 'processing': return 'Processing...';
+    case 'processingEmail': return 'Gen Email...';
     default: return actionType.charAt(0).toUpperCase() + actionType.slice(1);
   }
 }
 
+interface AppSidebarProps {
+  groupedHistory: Record<string, HistoryItem[]>;
+  clearHistory: () => void;
+  isLoading: boolean;
+}
 
-export default function AppSidebar() {
-  const { setOpen } = useSidebar(); 
-  const { groupedHistory, clearHistory, isLoading: historyLoading } = useHistory();
+export default function AppSidebar({ groupedHistory, clearHistory, isLoading: historyLoading }: AppSidebarProps) {
+  const { setOpen } = useSidebar();
 
-  // handleGuidelinesClick removed as button is moved
+  const handleGuidelinesClick = () => {
+    // Potentially close sidebar if on mobile and link is clicked
+    if (typeof window !== 'undefined' && window.innerWidth < 768) { // Example mobile breakpoint
+      setOpen(false);
+    }
+  };
 
   return (
-    <Sidebar collapsible="offcanvas" side="left"> 
+    <Sidebar collapsible="offcanvas" side="left">
       <SidebarHeader>
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center mt-2"> {/* Added mt-2 for spacing */}
+        <Button
+            asChild
+            variant="ghost" // Match sidebar style
+            className="w-full justify-start text-sm mb-2 mt-1 px-2 py-1.5 h-auto hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
+            onClick={handleGuidelinesClick}
+          >
+            <Link href="/guidelines" target="_blank" rel="noopener noreferrer">
+              <BookOpen className="mr-2 h-4 w-4 group-data-[collapsible=icon]:mr-0" />
+              <span className="group-data-[collapsible=icon]:hidden">Guidelines</span>
+            </Link>
+          </Button>
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
            <BotMessageSquare className="h-7 w-7 text-primary" data-ai-hint="robot chat" />
           <span className="text-lg font-semibold text-primary group-data-[collapsible=icon]:hidden">Jarvis AI</span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="flex flex-col"> 
-        {/* Removed SidebarMenu and SidebarSeparator that contained the old Guidelines button */}
-        
-        <div className="px-2 group-data-[collapsible=icon]:hidden flex justify-between items-center mb-2 mt-3"> {/* Added mt-3 for spacing from header */}
+      <SidebarContent className="flex flex-col">
+        <div className="px-2 group-data-[collapsible=icon]:hidden flex justify-between items-center mb-2 mt-3">
           <h3 className="text-sm font-semibold text-sidebar-foreground/80 flex items-center gap-2">
             <HistoryIcon className="h-4 w-4" />
             History
@@ -69,7 +84,7 @@ export default function AppSidebar() {
         </div>
 
         <div className="flex-grow overflow-y-auto group-data-[collapsible=icon]:hidden px-2">
-          <ScrollArea className="h-full"> 
+          <ScrollArea className="h-full">
             {historyLoading ? (
               <p className="text-xs text-muted-foreground">Loading history...</p>
             ) : Object.keys(groupedHistory).length === 0 ? (
@@ -79,7 +94,7 @@ export default function AppSidebar() {
                 <div key={dateGroup} className="mb-3">
                   <h4 className="text-xs font-medium text-muted-foreground mb-1.5">{dateGroup}</h4>
                   <ul className="space-y-1">
-                    {(items as HistoryItem[]).map((item: HistoryItem) => ( 
+                    {(items as HistoryItem[]).map((item: HistoryItem) => (
                       <li key={item.id} className="text-xs p-1.5 rounded-md hover:bg-sidebar-accent/50 transition-colors">
                         <div className="flex justify-between items-center">
                           <span className="truncate text-sidebar-foreground/90 max-w-[150px]" title={item.transcript}>
@@ -101,7 +116,7 @@ export default function AppSidebar() {
           </ScrollArea>
         </div>
       </SidebarContent>
-      <SidebarFooter className="group-data-[collapsible=icon]:hidden mt-auto"> 
+      <SidebarFooter className="group-data-[collapsible=icon]:hidden mt-auto">
         <p className="text-xs text-muted-foreground text-center">Jarvis v1.0</p>
       </SidebarFooter>
     </Sidebar>
