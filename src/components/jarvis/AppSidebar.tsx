@@ -8,15 +8,15 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarSeparator,
+  // SidebarMenu, // Removed
+  // SidebarMenuItem, // Removed
+  // SidebarMenuButton, // Removed
+  // SidebarSeparator, // Removed
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { BookOpen, HistoryIcon, Trash2, BotMessageSquare } from 'lucide-react';
+import { HistoryIcon, Trash2, BotMessageSquare } from 'lucide-react'; // BookOpen removed as button is moved
 import { useHistory, type HistoryItem } from '@/hooks/useHistory';
 import { Badge } from '@/components/ui/badge';
 
@@ -40,39 +40,23 @@ function getActionTypeFriendlyName(actionType: string): string {
 
 
 export default function AppSidebar() {
-  const { setOpen, isMobile } = useSidebar(); 
+  const { setOpen } = useSidebar(); 
   const { groupedHistory, clearHistory, isLoading: historyLoading } = useHistory();
 
-  const handleGuidelinesClick = () => {
-    window.open('/guidelines', '_blank');
-    // For an offcanvas sidebar, `setOpen(false)` is used to close it,
-    // regardless of whether it's mobile or desktop, as it's controlled by the main `open` state.
-    setOpen(false); 
-  };
+  // handleGuidelinesClick removed as button is moved
 
   return (
     <Sidebar collapsible="offcanvas" side="left"> 
       <SidebarHeader>
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center mt-2"> {/* Added mt-2 for spacing */}
            <BotMessageSquare className="h-7 w-7 text-primary" data-ai-hint="robot chat" />
           <span className="text-lg font-semibold text-primary group-data-[collapsible=icon]:hidden">Jarvis AI</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="flex flex-col"> 
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={handleGuidelinesClick}
-              tooltip={{ children: "Guidelines to use Jarvis AI", side: "right", align: "center" }}
-            >
-              <BookOpen />
-              <span>Guidelines</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <SidebarSeparator className="my-3" />
+        {/* Removed SidebarMenu and SidebarSeparator that contained the old Guidelines button */}
         
-        <div className="px-2 group-data-[collapsible=icon]:hidden flex justify-between items-center mb-2">
+        <div className="px-2 group-data-[collapsible=icon]:hidden flex justify-between items-center mb-2 mt-3"> {/* Added mt-3 for spacing from header */}
           <h3 className="text-sm font-semibold text-sidebar-foreground/80 flex items-center gap-2">
             <HistoryIcon className="h-4 w-4" />
             History
@@ -123,4 +107,3 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-

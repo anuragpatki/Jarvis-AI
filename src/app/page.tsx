@@ -3,7 +3,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin, Globe, Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin, Globe, Menu, X, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -327,7 +328,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         toast({ title: "Email Draft Generated", description: "Your email draft is ready below. A Gmail compose window has also opened.", icon: <CheckCircleIcon className="h-5 w-5 text-green-500" /> });
         historyEntry.actionType = 'emailDraft';
       } else {
-        speakText(`Failed to compose email draft. ${result.message}`);cl
+        speakText(`Failed to compose email draft. ${result.message}`);
         toast({ title: "Email Generation Error", description: result.message, variant: "destructive" });
         historyEntry.actionType = 'error';
       }
@@ -542,6 +543,17 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       <div className="w-full max-w-3xl mx-auto">
         {/* Inner UI Wrapper for flex layout of Jarvis elements */}
         <div className="flex flex-col items-center space-y-6">
+          
+          <Button
+            asChild
+            className="mb-4 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 hover:from-blue-700 hover:via-sky-600 hover:to-cyan-500 text-white font-semibold py-2 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
+          >
+            <Link href="/guidelines" target="_blank" rel="noopener noreferrer">
+              <BookOpen className="mr-2 h-5 w-5" />
+              View Guidelines
+            </Link>
+          </Button>
+
           <header className="text-center">
             <h1 className="text-5xl font-bold text-primary font-headline">JARVIS - AI</h1>
             <p className="text-muted-foreground mt-2">Your Voice-Powered AI Assistant</p>
