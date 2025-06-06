@@ -1,4 +1,6 @@
 
+![Jarvis - AI Web look](Jarvis-AI.png "A demo of the project's main features")
+
 # Jarvis - Your Voice-Powered AI Assistant
 
 ## Description
