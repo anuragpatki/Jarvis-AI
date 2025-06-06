@@ -114,6 +114,7 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
 
   // Image Generation
   const imageKeywords = [
+    // With "an" or "a"
     'create an image of', 'create a image of',
     'generate an image of', 'generate a image of',
     'make an image of', 'make a image of',
@@ -123,7 +124,26 @@ export async function processVoiceCommand(transcript: string): Promise<ProcessVo
     'create a photo of', 'generate a photo of',
     'make a photo of', 'draw a photo of',
     'show me an image of', 'show me a picture of', 'show me a photo of',
-    'i want an image of', 'i want a picture of', 'i want a photo of'
+    'i want an image of', 'i want a picture of', 'i want a photo of',
+    // Without "an" or "a"
+    'create image of',
+    'generate image of',
+    'make image of',
+    'draw image of',
+    'create picture of',
+    'generate picture of',
+    'make picture of',
+    'draw picture of',
+    'create photo of',
+    'generate photo of',
+    'make photo of',
+    'draw photo of',
+    'show me image of',
+    'show me picture of',
+    'show me photo of',
+    'i want image of',
+    'i want picture of',
+    'i want photo of',
   ];
   for (const keyword of imageKeywords) {
     if (lowerTranscript.startsWith(keyword + ' ')) {
