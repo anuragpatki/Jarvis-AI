@@ -12,8 +12,7 @@ import {
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { HistoryIcon, Trash2, BotMessageSquare, BookOpen } from 'lucide-react';
-import Link from 'next/link';
+import { HistoryIcon, Trash2, BotMessageSquare } from 'lucide-react';
 import type { HistoryItem } from '@/hooks/useHistory'; // Import HistoryItem type
 import { Badge } from '@/components/ui/badge';
 
@@ -44,28 +43,10 @@ interface AppSidebarProps {
 export default function AppSidebar({ groupedHistory, clearHistory, isLoading: historyLoading }: AppSidebarProps) {
   const { setOpen } = useSidebar();
 
-  const handleGuidelinesClick = () => {
-    // Potentially close sidebar if on mobile and link is clicked
-    if (typeof window !== 'undefined' && window.innerWidth < 768) { // Example mobile breakpoint
-      setOpen(false);
-    }
-  };
-
   return (
     <Sidebar collapsible="offcanvas" side="left">
       <SidebarHeader>
-        <Button
-            asChild
-            variant="ghost" // Match sidebar style
-            className="w-full justify-start text-sm mb-2 mt-1 px-2 py-1.5 h-auto hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
-            onClick={handleGuidelinesClick}
-          >
-            <Link href="/guidelines" target="_blank" rel="noopener noreferrer">
-              <BookOpen className="mr-2 h-4 w-4 group-data-[collapsible=icon]:mr-0" />
-              <span className="group-data-[collapsible=icon]:hidden">Guidelines</span>
-            </Link>
-          </Button>
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center mt-2 mb-2">
            <BotMessageSquare className="h-7 w-7 text-primary" data-ai-hint="robot chat" />
           <span className="text-lg font-semibold text-primary group-data-[collapsible=icon]:hidden">Jarvis AI</span>
         </div>
