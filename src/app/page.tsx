@@ -2,7 +2,7 @@
 // src/app/page.tsx
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import Link from 'next/link';
 import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin, Globe, Menu, X, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import type { EmailFormData } from '@/lib/schemas';
 import Image from 'next/image';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import type { HistoryItem } from '@/app/layout'; // Import HistoryItem from layout
+import { usePageInteraction } from '@/app/layout'; // Import the context hook
 
 
 declare global {
@@ -27,13 +28,15 @@ declare global {
 interface JarvisPageProps {
   params?: Record<string, string | string[]>;
   searchParams?: { [key: string]: string | string[] | undefined };
-  addHistoryItem?: (itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => void; // Prop from RootLayout
+  // addHistoryItem is now provided by context
 }
 
 const SIDEBAR_OFFCANVAS_WIDTH = "18rem";
 
-export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageProps) {
-  console.log('[JarvisPage] Component rendered. addHistoryItem prop type:', typeof addHistoryItem, 'Is addHistoryItem a function?', addHistoryItem instanceof Function);
+export default function JarvisPage({ searchParams }: JarvisPageProps) {
+  const { addHistoryItem } = usePageInteraction(); // Get addHistoryItem from context
+  console.log('[JarvisPage] Component rendered. addHistoryItem from context type:', typeof addHistoryItem, 'Is addHistoryItem a function?', addHistoryItem instanceof Function);
+
 
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
@@ -77,11 +80,11 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
   }, []);
 
   const logHistory = useCallback((details: Omit<HistoryItem, 'id' | 'timestamp'>) => {
-    console.log('[JarvisPage] logHistory called. addHistoryItem type:', typeof addHistoryItem);
+    console.log('[JarvisPage] logHistory called. addHistoryItem (from context) type:', typeof addHistoryItem);
     if (addHistoryItem && typeof addHistoryItem === 'function') {
       addHistoryItem(details);
     } else {
-      console.warn("addHistoryItem function not available or not a function on JarvisPage. Details:", details);
+      console.warn("addHistoryItem function not available via context or not a function on JarvisPage. Details:", details);
     }
   }, [addHistoryItem]);
 
@@ -248,13 +251,10 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
         description = "I didn't hear anything. Please ensure your microphone is working and try speaking clearly.";
         toastVariant = "default";
       } else if (event.error === 'audio-capture') {
-        console.error("Speech recognition error (audio-capture): Microphone issue or permissions. Event:", event);
         description = "Audio capture failed. Please check your microphone permissions and ensure it's connected.";
       } else if (event.error === 'not-allowed') {
-        console.error("Speech recognition error (not-allowed): Microphone access denied. Event:", event);
         description = "Microphone access was denied. Please allow microphone access in your browser settings.";
       } else if (event.error === 'network') {
-        console.error("Speech recognition error (network): Network issue. Event:", event);
         title = "Network Error";
         description = "Speech recognition failed due to a network issue. Please check your internet connection and try again.";
       } else {
@@ -262,7 +262,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
 
-      if (event.error !== 'no-speech') { // Avoid speaking for "no-speech" as it's common
+      if (event.error !== 'no-speech') { 
         speakText(description);
       }
       toast({
@@ -642,4 +642,3 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
     </div>
   );
 }
-
