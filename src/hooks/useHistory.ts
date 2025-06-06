@@ -15,7 +15,7 @@ export interface HistoryItem {
   prompt?: string;
 }
 
-interface UseAppHistoryManagerReturn {
+export interface UseAppHistoryManagerReturn {
   history: HistoryItem[];
   groupedHistory: Record<string, HistoryItem[]>;
   addHistoryItem: (itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => void;
@@ -28,25 +28,39 @@ const MAX_HISTORY_ITEMS = 100;
 
 export function useAppHistoryManager(): UseAppHistoryManagerReturn {
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Initialize to true
 
   useEffect(() => {
+    // isLoading is true by default from useState.
+    // This effect runs once on mount to load from localStorage.
     if (typeof window !== 'undefined') {
-      setIsLoading(true);
       try {
         const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
         if (storedHistory) {
-          setHistory(JSON.parse(storedHistory));
+          const parsed = JSON.parse(storedHistory);
+          if (Array.isArray(parsed)) {
+            setHistory(parsed);
+          } else {
+            console.warn("Stored history is not an array, clearing.");
+            localStorage.removeItem(HISTORY_STORAGE_KEY);
+            setHistory([]); // Default to empty if corrupted
+          }
+        } else {
+          setHistory([]); // Default to empty if no stored history
         }
       } catch (error) {
         console.error("Failed to load history from localStorage:", error);
+        setHistory([]); // Default to empty on error
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Set to false after all attempts
       }
     } else {
+      // For SSR or environments without window, immediately set loading to false.
+      // History will be empty.
+      setHistory([]);
       setIsLoading(false);
     }
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount.
 
   const addHistoryItem = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
     if (typeof window === 'undefined') return;
@@ -108,6 +122,7 @@ export function useAppHistoryManager(): UseAppHistoryManagerReturn {
         acc[groupName].push(item);
       } catch (e) {
         console.error("Error parsing date for history item:", item, e);
+        // Optionally, you could add problematic items to a "Malformed Date" group
       }
       return acc;
     }, {} as Record<string, HistoryItem[]>);
