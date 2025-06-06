@@ -2,7 +2,7 @@
 // src/hooks/useHistory.ts
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
 export interface HistoryItem {
@@ -28,11 +28,9 @@ const MAX_HISTORY_ITEMS = 100;
 
 export function useAppHistoryManager(): UseAppHistoryManagerReturn {
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Initialize to true
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // isLoading is true by default from useState.
-    // This effect runs once on mount to load from localStorage.
     if (typeof window !== 'undefined') {
       try {
         const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -43,26 +41,24 @@ export function useAppHistoryManager(): UseAppHistoryManagerReturn {
           } else {
             console.warn("Stored history is not an array, clearing.");
             localStorage.removeItem(HISTORY_STORAGE_KEY);
-            setHistory([]); // Default to empty if corrupted
+            setHistory([]);
           }
         } else {
-          setHistory([]); // Default to empty if no stored history
+          setHistory([]);
         }
       } catch (error) {
         console.error("Failed to load history from localStorage:", error);
-        setHistory([]); // Default to empty on error
+        setHistory([]);
       } finally {
-        setIsLoading(false); // Set to false after all attempts
+        setIsLoading(false);
       }
     } else {
-      // For SSR or environments without window, immediately set loading to false.
-      // History will be empty.
       setHistory([]);
       setIsLoading(false);
     }
-  }, []); // Empty dependency array means this runs once on mount.
+  }, []);
 
-  const addHistoryItem = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
+  const addHistoryItem = (itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
     if (typeof window === 'undefined') return;
 
     if (!itemDetails.transcript || !itemDetails.actionType) {
@@ -92,9 +88,9 @@ export function useAppHistoryManager(): UseAppHistoryManagerReturn {
       }
       return updatedHistory;
     });
-  }, []);
+  };
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = () => {
     if (typeof window === 'undefined') return;
     setHistory([]);
     try {
@@ -102,7 +98,7 @@ export function useAppHistoryManager(): UseAppHistoryManagerReturn {
     } catch (error) {
       console.error("Failed to clear history from localStorage:", error);
     }
-  }, []);
+  };
 
   const groupedHistory = useMemo(() => {
     return history.reduce((acc, item) => {
@@ -122,7 +118,6 @@ export function useAppHistoryManager(): UseAppHistoryManagerReturn {
         acc[groupName].push(item);
       } catch (e) {
         console.error("Error parsing date for history item:", item, e);
-        // Optionally, you could add problematic items to a "Malformed Date" group
       }
       return acc;
     }, {} as Record<string, HistoryItem[]>);
