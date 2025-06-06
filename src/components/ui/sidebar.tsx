@@ -30,9 +30,9 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 type SidebarContext = {
   state: "expanded" | "collapsed"
   open: boolean
-  setOpen: (open: boolean) => void
+  setOpen: (open: boolean | ((prevState: boolean) => boolean)) => void
   openMobile: boolean
-  setOpenMobile: (open: boolean) => void
+  setOpenMobile: (open: boolean | ((prevState: boolean) => boolean)) => void
   isMobile: boolean
   toggleSidebar: () => void
 }
@@ -89,13 +89,14 @@ const SidebarProvider = React.forwardRef<
     )
 
     const toggleSidebar = React.useCallback(() => {
-      // For offcanvas (which uses 'open' state), or desktop 'icon' mode:
-      if (isMobile) { // Mobile always toggles its own sheet state
-        setOpenMobile((current) => !current);
-      } else { // Desktop toggles the main 'open' state
-        setOpen((current) => !current);
-      }
-    }, [isMobile, setOpen, setOpenMobile])
+      // For an "offcanvas" sidebar (like AppSidebar), the `open` state controls its Sheet
+      // on both desktop and mobile.
+      // The `openMobile` state is for sidebars that are collapsible to an icon on desktop
+      // and become a *different* Sheet (managed by `openMobile`) on mobile.
+      // Since the primary trigger is expected to control the main sidebar (AppSidebar which is offcanvas),
+      // we always toggle `open`.
+      setOpen((current) => !current);
+    }, [setOpen]);
 
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -176,10 +177,7 @@ const Sidebar = React.forwardRef<
     const { open, setOpen, isMobile, openMobile, setOpenMobile, state: desktopIconCollapseState } = useSidebar()
 
     if (collapsible === "offcanvas") {
-      // Offcanvas always uses Sheet, controlled by 'open' and 'setOpen' from context.
-      // 'variant' prop is mostly ignored here.
-      // The 'openMobile' and 'setOpenMobile' are not used for offcanvas desktop.
-      // 'toggleSidebar' handles the correct state toggle.
+      // Offcanvas always uses Sheet, controlled by `open` and `setOpen` from context.
       return (
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent
@@ -194,7 +192,6 @@ const Sidebar = React.forwardRef<
               } as React.CSSProperties
             }
             side={side}
-            // Do not pass ...props here as they are meant for the div wrapper in other modes
           >
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
@@ -255,7 +252,7 @@ const Sidebar = React.forwardRef<
         <div
           className={cn(
             "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0", // This class won't apply due to earlier return for offcanvas
+            "group-data-[collapsible=offcanvas]:w-0", 
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
               ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
@@ -266,12 +263,11 @@ const Sidebar = React.forwardRef<
           className={cn(
             "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
             side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]" // Won't apply
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]", // Won't apply
+              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]" 
+              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]", 
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l"
-            // Removed className from here as it's on the parent div
           )}
         >
           <div
@@ -306,7 +302,7 @@ const SidebarTrigger = React.forwardRef<
       }}
       {...props}
     >
-      {children || <PanelLeft />} {/* Allow children to override, default to PanelLeft */}
+      {children || <PanelLeft />} 
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
@@ -790,4 +786,3 @@ export {
   useSidebar,
 }
 
-    

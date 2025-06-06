@@ -327,7 +327,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         toast({ title: "Email Draft Generated", description: "Your email draft is ready below. A Gmail compose window has also opened.", icon: <CheckCircleIcon className="h-5 w-5 text-green-500" /> });
         historyEntry.actionType = 'emailDraft';
       } else {
-        speakText(`Failed to compose email draft. ${result.message}`);
+        speakText(`Failed to compose email draft. ${result.message}`);cl
         toast({ title: "Email Generation Error", description: result.message, variant: "destructive" });
         historyEntry.actionType = 'error';
       }

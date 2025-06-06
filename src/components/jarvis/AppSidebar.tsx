@@ -40,19 +40,18 @@ function getActionTypeFriendlyName(actionType: string): string {
 
 
 export default function AppSidebar() {
-  const { setOpenMobile, isMobile, open, state } = useSidebar(); 
+  const { setOpen, isMobile } = useSidebar(); 
   const { groupedHistory, clearHistory, isLoading: historyLoading } = useHistory();
 
   const handleGuidelinesClick = () => {
     window.open('/guidelines', '_blank');
-    if (isMobile) {
-      setOpenMobile(false); 
-    }
-    // For desktop, the sidebar state is managed by 'open' from useSidebar context
+    // For an offcanvas sidebar, `setOpen(false)` is used to close it,
+    // regardless of whether it's mobile or desktop, as it's controlled by the main `open` state.
+    setOpen(false); 
   };
 
   return (
-    <Sidebar collapsible="offcanvas" side="left"> {/* Changed to offcanvas */}
+    <Sidebar collapsible="offcanvas" side="left"> 
       <SidebarHeader>
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
            <BotMessageSquare className="h-7 w-7 text-primary" data-ai-hint="robot chat" />
@@ -124,3 +123,4 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
+
