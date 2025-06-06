@@ -228,7 +228,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
       if (transcriptToProcess) {
         processFinalTranscript(transcriptToProcess);
       } else {
-        if (!isLoading && !currentTranscript && speechRecognitionRef.current && (speechRecognitionRef.current as any)._error !== 'no-speech') {
+        if (!isLoading && !currentTranscript && speechRecognitionRef.current) {
           // No final transcript and not a 'no-speech' error, possibly quick stop
         }
         setIsLoading(false);
@@ -236,7 +236,6 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
     };
 
     recognition.onerror = (event) => {
-      (speechRecognitionRef.current as any)._error = event.error;
       let description = "An error occurred during speech recognition.";
       let title = "Speech Recognition Error";
       let toastVariant: "default" | "destructive" = "destructive";
@@ -251,6 +250,10 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
       } else if (event.error === 'not-allowed') {
         console.error("Speech recognition error (not-allowed): Microphone access denied. Event:", event);
         description = "Microphone access was denied. Please allow microphone access in your browser settings.";
+      } else if (event.error === 'network') {
+        console.error("Speech recognition error (network): Network issue. Event:", event);
+        title = "Network Error";
+        description = "Speech recognition failed due to a network issue. Please check your internet connection and try again.";
       } else {
         console.error(`Speech recognition error: ${event.error}. Event:`, event);
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
@@ -282,7 +285,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText, logHistory]); // Added logHistory dependency
+  }, [toast, processFinalTranscript, speakText, logHistory]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -297,7 +300,6 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
       recognition.stop();
     } else {
       resetState();
-      (recognition as any)._error = null;
       try {
         recognition.start();
       } catch (error) {
