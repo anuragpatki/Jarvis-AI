@@ -1,16 +1,29 @@
 
-'use client'; // Make RootLayout a client component
+'use client';
 
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider } from '@/components/ui/sidebar';
 import AppSidebar from '@/components/jarvis/AppSidebar';
-import { useAppHistoryManager, type HistoryItem } from '@/hooks/useHistory'; // Import the new hook and type
-import React from 'react'; // Import React for cloneElement
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
-// Metadata should be defined statically if possible, or moved if dynamic based on client state
-// export const metadata: Metadata = { // This might need adjustment if it relies on client state now
+// Define and export HistoryItem type
+export interface HistoryItem {
+  id: string;
+  timestamp: string; // ISO string
+  transcript: string;
+  actionType: string;
+  query?: string;
+  topic?: string;
+  prompt?: string;
+}
+
+const HISTORY_STORAGE_KEY = 'jarvisHistory';
+const MAX_HISTORY_ITEMS = 100;
+
+// export const metadata: Metadata = { // Cannot export metadata from client component
 //   title: 'Jarvis Voice Assistant',
 //   description: 'Voice-powered assistant built with Next.js and GenAI',
 // };
@@ -20,12 +33,103 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { groupedHistory, addHistoryItem, clearHistory, isLoading: historyIsLoading } = useAppHistoryManager();
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
-  // It's generally recommended to keep metadata static.
-  // If you need dynamic metadata based on client-side state, that's more complex.
-  // For now, let's assume metadata can be static or managed differently.
-  // You might need to move the metadata object outside or handle it in a page component.
+  // Load history from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+        if (storedHistory) {
+          const parsed = JSON.parse(storedHistory);
+          if (Array.isArray(parsed)) {
+            setHistory(parsed);
+          } else {
+            console.warn("Stored history is not an array, clearing.");
+            localStorage.removeItem(HISTORY_STORAGE_KEY);
+            setHistory([]);
+          }
+        } else {
+          setHistory([]);
+        }
+      } catch (error) {
+        console.error("Failed to load history from localStorage:", error);
+        setHistory([]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    } else {
+      // Fallback for SSR or environments without window
+      setHistory([]);
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isLoadingHistory) {
+      try {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+      } catch (error) {
+        console.error("Failed to save history to localStorage:", error);
+      }
+    }
+  }, [history, isLoadingHistory]);
+
+  const addHistoryItem = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
+    if (!itemDetails.transcript || !itemDetails.actionType) {
+      console.warn("Attempted to add history item with missing transcript or actionType:", itemDetails);
+      return;
+    }
+    let newId = '';
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      newId = crypto.randomUUID();
+    } else {
+      // Fallback for environments without crypto.randomUUID (e.g., older browsers, some Node.js versions without global crypto)
+      newId = `id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+    const newItem: HistoryItem = {
+      ...itemDetails,
+      id: newId,
+      timestamp: new Date().toISOString(),
+    };
+    setHistory(prevHistory => [newItem, ...prevHistory].slice(0, MAX_HISTORY_ITEMS));
+  }, []); // Empty dependency array is fine as setHistory from useState is stable
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(HISTORY_STORAGE_KEY);
+      } catch (error) {
+        console.error("Failed to clear history from localStorage:", error);
+      }
+    }
+  }, []); // Empty dependency array
+
+  const groupedHistory = useMemo(() => {
+    return history.reduce((acc, item) => {
+      try {
+        const date = parseISO(item.timestamp);
+        let groupName = '';
+        if (isToday(date)) {
+          groupName = 'Today';
+        } else if (isYesterday(date)) {
+          groupName = 'Yesterday';
+        } else {
+          groupName = format(date, 'MMMM d, yyyy');
+        }
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(item);
+      } catch (e) {
+        console.error("Error parsing date for history item:", item, e);
+      }
+      return acc;
+    }, {} as Record<string, HistoryItem[]>);
+  }, [history]);
 
   return (
     <html lang="en">
@@ -41,13 +145,12 @@ export default function RootLayout({
           <AppSidebar
             groupedHistory={groupedHistory}
             clearHistory={clearHistory}
-            isLoading={historyIsLoading}
+            isLoading={isLoadingHistory}
           />
           <main className="min-h-screen">
             {React.Children.map(children, child => {
               if (React.isValidElement(child)) {
                 // Type assertion to pass addHistoryItem.
-                // Consider a more specific type for child.props if many components need this.
                 return React.cloneElement(child as React.ReactElement<any>, { addHistoryItem });
               }
               return child;

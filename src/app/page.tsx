@@ -14,7 +14,7 @@ import EmailDialog from '@/components/jarvis/email-dialog';
 import type { EmailFormData } from '@/lib/schemas';
 import Image from 'next/image';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import type { HistoryItem } from '@/hooks/useHistory';
+import type { HistoryItem } from '@/app/layout'; // Import HistoryItem from layout
 
 
 declare global {
@@ -285,7 +285,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText, logHistory]);
+  }, [toast, processFinalTranscript, speakText, logHistory]); // logHistory added to dependencies
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {

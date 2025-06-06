@@ -12,9 +12,12 @@ import {
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { HistoryIcon, Trash2, BotMessageSquare } from 'lucide-react';
-import type { HistoryItem } from '@/hooks/useHistory'; // Import HistoryItem type
+import { HistoryIcon, Trash2, BotMessageSquare, BookOpen } from 'lucide-react';
+import type { HistoryItem } from '@/app/layout'; // Import HistoryItem type from layout
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+
 
 function getActionTypeFriendlyName(actionType: string): string {
   switch (actionType) {
