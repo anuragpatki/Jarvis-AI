@@ -21,7 +21,7 @@ export interface HistoryItem {
 }
 
 const HISTORY_STORAGE_KEY = 'jarvisHistory';
-const MAX_HISTORY_ITEMS = 100; // Keep this for when we re-enable slicing
+const MAX_HISTORY_ITEMS = 100;
 
 // Helper to validate a single history item structure (basic check)
 function isValidHistoryItem(item: any): item is HistoryItem {
@@ -57,8 +57,9 @@ export default function RootLayout({
         const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
         if (storedHistory) {
           const parsed = JSON.parse(storedHistory);
+          // Validate the entire array and each item
           if (Array.isArray(parsed) && parsed.every(isValidHistoryItem)) {
-            console.log("[RootLayout] Loaded history from localStorage:", parsed);
+            console.log("[RootLayout] Loaded valid history from localStorage:", parsed);
             loadedHistory = parsed;
           } else {
             console.warn("[RootLayout] Stored history is invalid, not an array, or items are malformed. Clearing.");
@@ -75,6 +76,7 @@ export default function RootLayout({
       setIsLoadingHistory(false);
       console.log("[RootLayout] Finished loading history. isLoadingHistory:", false, "History length:", loadedHistory.length);
     } else {
+      // Should not happen in a client component context like this, but good for safety
       setHistory([]);
       setIsLoadingHistory(false);
     }
@@ -86,19 +88,25 @@ export default function RootLayout({
     if (typeof window !== 'undefined' && !isLoadingHistory) { // Only save if not initial loading phase
       console.log('[RootLayout] Saving history to localStorage. Current history length:', history.length);
       try {
-        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        // Filter out any potentially invalid items before saving, though `addHistoryItem` should prevent this.
+        const validHistoryToSave = history.filter(isValidHistoryItem);
+        if(validHistoryToSave.length !== history.length) {
+            console.warn("[RootLayout] Attempted to save history with some invalid items. Filtering them out.");
+        }
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(validHistoryToSave));
       } catch (error) {
         console.error("[RootLayout] Failed to save history to localStorage:", error);
       }
     }
   }, [history, isLoadingHistory]); // Runs when history or isLoadingHistory changes
 
-  const addHistoryItem = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
+  const addHistoryItem = (itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
+    // Basic validation for essential fields before adding
     if (!itemDetails.transcript || !itemDetails.actionType) {
       console.warn("[RootLayout] Attempted to add history item with missing transcript or actionType:", itemDetails);
       return;
     }
-    let newId = '';
+     let newId = '';
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       newId = crypto.randomUUID();
     } else {
@@ -113,31 +121,32 @@ export default function RootLayout({
 
     console.log('[RootLayout] addHistoryItem called with new item:', newItem);
     setHistory(prevHistory => {
+      // Ensure prevHistory is always an array, even if something went wrong.
       const currentHistory = Array.isArray(prevHistory) ? prevHistory : [];
-      // Temporarily remove slicing for MAX_HISTORY_ITEMS for debugging
       const newHistoryState = [newItem, ...currentHistory];
       console.log('[RootLayout] setHistory. New state will have length:', newHistoryState.length);
+      // return newHistoryState; // Temporarily remove slicing for MAX_HISTORY_ITEMS for debugging
       return newHistoryState.slice(0, MAX_HISTORY_ITEMS); // Re-add slice later if needed
     });
-  }, []); // No dependencies means this function is stable unless RootLayout re-mounts
+  };
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = () => {
     console.log('[RootLayout] clearHistory called.');
-    setHistory([]);
+    setHistory([]); // This will trigger the useEffect to save the empty array
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem(HISTORY_STORAGE_KEY);
+        localStorage.removeItem(HISTORY_STORAGE_KEY); // Also explicitly remove, just in case.
       } catch (error) {
         console.error("[RootLayout] Failed to clear history from localStorage:", error);
       }
     }
-  }, []); // No dependencies
+  };
 
   const groupedHistory = useMemo(() => {
     console.log('[RootLayout] Recalculating groupedHistory. Current history length:', history.length);
     return history.reduce((acc, item) => {
       try {
-        const date = parseISO(item.timestamp);
+        const date = parseISO(item.timestamp); // Ensure timestamp is valid before parsing
         let groupName = '';
         if (isToday(date)) {
           groupName = 'Today';
@@ -152,6 +161,7 @@ export default function RootLayout({
         acc[groupName].push(item);
       } catch (e) {
         console.error("[RootLayout] Error parsing date for history item:", item, e);
+        // Optionally, group invalid date items into a separate "Invalid Date" group or skip them
       }
       return acc;
     }, {} as Record<string, HistoryItem[]>);
@@ -178,6 +188,7 @@ export default function RootLayout({
           <main className="min-h-screen">
             {React.Children.map(children, child => {
               if (React.isValidElement(child)) {
+                console.log('[RootLayout] Cloning child. addHistoryItem is of type:', typeof addHistoryItem, 'Is addHistoryItem a function?', addHistoryItem instanceof Function);
                 // Type assertion to pass addHistoryItem.
                 // Ensure the key is preserved if the child has one.
                 return React.cloneElement(child as React.ReactElement<any>, { key: child.key, addHistoryItem });

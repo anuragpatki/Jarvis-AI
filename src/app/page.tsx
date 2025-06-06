@@ -33,6 +33,8 @@ interface JarvisPageProps {
 const SIDEBAR_OFFCANVAS_WIDTH = "18rem";
 
 export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageProps) {
+  console.log('[JarvisPage] Component rendered. addHistoryItem prop type:', typeof addHistoryItem, 'Is addHistoryItem a function?', addHistoryItem instanceof Function);
+
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
@@ -75,10 +77,11 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
   }, []);
 
   const logHistory = useCallback((details: Omit<HistoryItem, 'id' | 'timestamp'>) => {
-    if (addHistoryItem) {
+    console.log('[JarvisPage] logHistory called. addHistoryItem type:', typeof addHistoryItem);
+    if (addHistoryItem && typeof addHistoryItem === 'function') {
       addHistoryItem(details);
     } else {
-      console.warn("addHistoryItem function not available on JarvisPage");
+      console.warn("addHistoryItem function not available or not a function on JarvisPage. Details:", details);
     }
   }, [addHistoryItem]);
 
@@ -170,7 +173,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
       stopSoundRef.current = new Audio('/sounds/stop-listening.mp3');
     } catch (e) {
       console.error("Error initializing audio files. Ensure /sounds/start-listening.mp3 and /sounds/stop-listening.mp3 exist in public folder.", e);
-      toast({title: "Audio Error", description: "Could not load listening sound effects.", variant: "destructive", duration: 7000});
+      toast({title: "Audio Error", description: "Could not load listening sound effects. Please ensure files exist in /public/sounds/.", variant: "destructive", duration: 7000});
     }
 
 
@@ -259,7 +262,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
 
-      if (event.error !== 'no-speech') {
+      if (event.error !== 'no-speech') { // Avoid speaking for "no-speech" as it's common
         speakText(description);
       }
       toast({
@@ -285,7 +288,7 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
         window.speechSynthesis.cancel();
       }
     };
-  }, [toast, processFinalTranscript, speakText, logHistory]); // logHistory added to dependencies
+  }, [toast, processFinalTranscript, speakText, logHistory]);
 
   const handleToggleListen = () => {
     if (speechSupport !== 'supported' || !speechRecognitionRef.current) {
@@ -639,3 +642,4 @@ export default function JarvisPage({ searchParams, addHistoryItem }: JarvisPageP
     </div>
   );
 }
+
