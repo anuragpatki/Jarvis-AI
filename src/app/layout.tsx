@@ -64,7 +64,6 @@ export default function RootLayout({
 
   // Load history from localStorage on mount
   useEffect(() => {
-    console.log("[RootLayout] Attempting to load history from localStorage");
     let loadedHistory: HistoryItem[] = [];
     if (typeof window !== 'undefined') {
       try {
@@ -72,14 +71,11 @@ export default function RootLayout({
         if (storedHistory) {
           const parsed = JSON.parse(storedHistory);
           if (Array.isArray(parsed) && parsed.every(isValidHistoryItem)) {
-            console.log("[RootLayout] Loaded valid history from localStorage:", parsed);
             loadedHistory = parsed;
           } else {
             console.warn("[RootLayout] Stored history is invalid or malformed. Clearing.");
             localStorage.removeItem(HISTORY_STORAGE_KEY);
           }
-        } else {
-          console.log("[RootLayout] No history found in localStorage.");
         }
       } catch (error) {
         console.error("[RootLayout] Failed to load/parse history from localStorage:", error);
@@ -88,13 +84,11 @@ export default function RootLayout({
     }
     setHistory(loadedHistory);
     setIsLoadingHistory(false);
-    console.log("[RootLayout] Finished loading history. isLoadingHistory:", false, "History length:", loadedHistory.length);
   }, []);
 
   // Save history to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined' && !isLoadingHistory) {
-      console.log('[RootLayout] Saving history to localStorage. Current history length:', history.length);
       try {
         const validHistoryToSave = history.filter(isValidHistoryItem);
         if(validHistoryToSave.length !== history.length) {
@@ -123,29 +117,25 @@ export default function RootLayout({
       id: newId,
       timestamp: new Date().toISOString(),
     };
-    console.log('[RootLayout] addHistoryItem called with new item:', newItem);
     setHistory(prevHistory => {
       const currentHistory = Array.isArray(prevHistory) ? prevHistory : [];
       const newHistoryState = [newItem, ...currentHistory];
-      console.log('[RootLayout] setHistory. New state will have length:', newHistoryState.length);
       return newHistoryState.slice(0, MAX_HISTORY_ITEMS);
     });
   }, []); // Dependencies for useCallback are empty as setHistory from useState is stable
 
   const clearHistory = useCallback(() => {
-    console.log('[RootLayout] clearHistory called.');
     setHistory([]);
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem(HISTORY_STORAGE_KEY);
-      } catch (error) {
+      } catch (error)        {
         console.error("[RootLayout] Failed to clear history from localStorage:", error);
       }
     }
   }, []); // Dependencies for useCallback are empty
 
   const groupedHistory = useMemo(() => {
-    console.log('[RootLayout] Recalculating groupedHistory. Current history length:', history.length);
     const validHistory = history.filter(isValidHistoryItem);
     return validHistory.reduce((acc, item) => {
       try {
@@ -169,7 +159,6 @@ export default function RootLayout({
     }, {} as Record<string, HistoryItem[]>);
   }, [history]);
 
-  console.log('[RootLayout] Rendering. History length:', history.length, 'IsLoading:', isLoadingHistory, 'GroupedHistory keys:', Object.keys(groupedHistory).length);
 
   const pageInteractionContextValue = useMemo(() => ({
     addHistoryItem

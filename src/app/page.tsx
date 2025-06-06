@@ -35,7 +35,6 @@ const SIDEBAR_OFFCANVAS_WIDTH = "18rem";
 
 export default function JarvisPage({ searchParams }: JarvisPageProps) {
   const { addHistoryItem } = usePageInteraction(); // Get addHistoryItem from context
-  console.log('[JarvisPage] Component rendered. addHistoryItem from context type:', typeof addHistoryItem, 'Is addHistoryItem a function?', addHistoryItem instanceof Function);
 
 
   const [isListening, setIsListening] = useState(false);
@@ -80,7 +79,6 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   }, []);
 
   const logHistory = useCallback((details: Omit<HistoryItem, 'id' | 'timestamp'>) => {
-    console.log('[JarvisPage] logHistory called. addHistoryItem (from context) type:', typeof addHistoryItem);
     if (addHistoryItem && typeof addHistoryItem === 'function') {
       addHistoryItem(details);
     } else {
@@ -262,7 +260,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
 
-      if (event.error !== 'no-speech') { 
+      if (event.error !== 'no-speech') {
         speakText(description);
       }
       toast({
