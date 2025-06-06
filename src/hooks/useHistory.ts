@@ -2,7 +2,7 @@
 // src/hooks/useHistory.ts
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useMemo, type ReactNode } from 'react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
 export interface HistoryItem {
@@ -15,17 +15,26 @@ export interface HistoryItem {
   prompt?: string;
 }
 
-const HISTORY_STORAGE_KEY = 'jarvisHistory';
-const MAX_HISTORY_ITEMS = 100; // Limit history size
+interface HistoryContextType {
+  history: HistoryItem[];
+  groupedHistory: Record<string, HistoryItem[]>;
+  addHistoryItem: (itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => void;
+  clearHistory: () => void;
+  isLoading: boolean;
+}
 
-export function useHistory() {
+const HISTORY_STORAGE_KEY = 'jarvisHistory';
+const MAX_HISTORY_ITEMS = 100;
+
+const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
+
+export function HistoryProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // To indicate loading from localStorage
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Ensure this only runs on the client
     if (typeof window !== 'undefined') {
-      setIsLoading(true); // Start loading
+      setIsLoading(true);
       try {
         const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
         if (storedHistory) {
@@ -33,28 +42,37 @@ export function useHistory() {
         }
       } catch (error) {
         console.error("Failed to load history from localStorage:", error);
-        // Optionally clear corrupted history if parsing fails
+        // Optionally clear corrupted history or handle error
         // localStorage.removeItem(HISTORY_STORAGE_KEY);
       } finally {
-        setIsLoading(false); // Finish loading
+        setIsLoading(false);
       }
     } else {
-      setIsLoading(false); // Not in a browser environment
+      // For SSR or environments without window, set loading to false
+      setIsLoading(false);
     }
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   const addHistoryItem = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
-    if (typeof window === 'undefined') return; // Don't run on server
+    if (typeof window === 'undefined') return;
 
-    // Guard against adding incomplete items, which might happen if data isn't passed correctly
+    // Basic validation
     if (!itemDetails.transcript || !itemDetails.actionType) {
       console.warn("Attempted to add history item with missing transcript or actionType:", itemDetails);
       return;
     }
 
+    let newId = '';
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      newId = crypto.randomUUID();
+    } else {
+      // Fallback for environments where crypto.randomUUID is not available
+      newId = `id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+
     const newItem: HistoryItem = {
       ...itemDetails,
-      id: crypto.randomUUID(),
+      id: newId,
       timestamp: new Date().toISOString(),
     };
 
@@ -64,14 +82,14 @@ export function useHistory() {
         localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updatedHistory));
       } catch (error) {
         console.error("Failed to save history to localStorage:", error);
+        // Handle potential storage errors (e.g., quota exceeded)
       }
       return updatedHistory;
     });
-  }, []); // useCallback with empty dependencies as setHistory updater form is used
+  }, []);
 
   const clearHistory = useCallback(() => {
     if (typeof window === 'undefined') return;
-
     setHistory([]);
     try {
       localStorage.removeItem(HISTORY_STORAGE_KEY);
@@ -80,24 +98,48 @@ export function useHistory() {
     }
   }, []);
 
-  const groupedHistory = history.reduce((acc, item) => {
-    const date = parseISO(item.timestamp);
-    let groupName = '';
-    if (isToday(date)) {
-      groupName = 'Today';
-    } else if (isYesterday(date)) {
-      groupName = 'Yesterday';
-    } else {
-      groupName = format(date, 'MMMM d, yyyy');
-    }
+  const groupedHistory = useMemo(() => {
+    return history.reduce((acc, item) => {
+      try {
+        const date = parseISO(item.timestamp);
+        let groupName = '';
+        if (isToday(date)) {
+          groupName = 'Today';
+        } else if (isYesterday(date)) {
+          groupName = 'Yesterday';
+        } else {
+          groupName = format(date, 'MMMM d, yyyy');
+        }
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(item);
+      } catch (e) {
+        console.error("Error parsing date for history item:", item, e);
+      }
+      return acc;
+    }, {} as Record<string, HistoryItem[]>);
+  }, [history]);
 
-    if (!acc[groupName]) {
-      acc[groupName] = [];
-    }
-    acc[groupName].push(item);
-    return acc;
-  }, {} as Record<string, HistoryItem[]>);
+  const providerValue = useMemo(() => ({
+    history,
+    groupedHistory,
+    addHistoryItem,
+    clearHistory,
+    isLoading
+  }), [history, groupedHistory, addHistoryItem, clearHistory, isLoading]);
 
+  return (
+    <HistoryContext.Provider value={providerValue}>
+      {children}
+    </HistoryContext.Provider>
+  );
+}
 
-  return { history, groupedHistory, addHistoryItem, clearHistory, isLoading };
+export function useHistory(): HistoryContextType {
+  const context = useContext(HistoryContext);
+  if (context === undefined) {
+    throw new Error('useHistory must be used within a HistoryProvider');
+  }
+  return context;
 }
