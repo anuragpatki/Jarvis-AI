@@ -544,7 +544,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         title="GitHub Repository"
       >
         <Github className="h-4 w-4" />
-        GitHub Repo
+        GitHub
       </a>
 
        <SidebarTrigger

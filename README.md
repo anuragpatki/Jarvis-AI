@@ -1,7 +1,11 @@
 
-![Jarvis - AI Web look](Jarvis-AI.png "A demo of the project's main features")
+[![Jarvis - AI Web look](Jarvis-AI.png "A demo of the project's main features")](https://jarvis-assist.netlify.app/ "JARVIS - AI")
 
 # Jarvis - Your Voice-Powered AI Assistant
+
+<a href="https://jarvis-assist.netlify.app/guidelines" target="_blank" title="Guidelines to operate Jarvis - AI" style="display: inline-block; padding: 10px 20px; background-color: #87CEEB; color: white; text-align: center; text-decoration: none; border-radius: 5px; cursor: pointer;">
+    Guidelines
+</a>
 
 ## Description
 
