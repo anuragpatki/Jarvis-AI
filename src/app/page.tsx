@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import Link from 'next/link';
-import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin, Globe, Menu, X, BookOpen } from 'lucide-react';
+import { Mic, MicOff, Loader2, FileTextIcon, YoutubeIcon, MailIcon, AlertTriangleIcon, InfoIcon, CheckCircleIcon, Copy as CopyIcon, SearchIcon, ImageIcon, Download as DownloadIcon, MapPin, Globe, Menu, X, BookOpen, Github } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,13 +28,12 @@ declare global {
 interface JarvisPageProps {
   params?: Record<string, string | string[]>;
   searchParams?: { [key: string]: string | string[] | undefined };
-  // addHistoryItem is now provided by context
 }
 
 const SIDEBAR_OFFCANVAS_WIDTH = "18rem";
 
 export default function JarvisPage({ searchParams }: JarvisPageProps) {
-  const { addHistoryItem } = usePageInteraction(); // Get addHistoryItem from context
+  const { addHistoryItem } = usePageInteraction();
 
 
   const [isListening, setIsListening] = useState(false);
@@ -62,10 +61,10 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         const utterance = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(utterance);
       } catch (error) {
-        console.error("Speech synthesis error:", error);
+        // console.error("Speech synthesis error:", error);
       }
     } else {
-      console.warn("Speech synthesis not supported by this browser.");
+      // console.warn("Speech synthesis not supported by this browser.");
     }
   }, []);
 
@@ -82,7 +81,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     if (addHistoryItem && typeof addHistoryItem === 'function') {
       addHistoryItem(details);
     } else {
-      console.warn("addHistoryItem function not available via context or not a function on JarvisPage. Details:", details);
+      // console.warn("addHistoryItem function not available or not a function on JarvisPage. Details:", details);
     }
   }, [addHistoryItem]);
 
@@ -151,7 +150,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
 
 
     } catch (error) {
-      console.error("Error processing voice command:", error);
+      // console.error("Error processing voice command:", error);
       const errorMessage = "An unexpected error occurred while processing.";
       speakText(errorMessage);
       toast({ title: "Processing Error", description: errorMessage, variant: "destructive" });
@@ -173,7 +172,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       startSoundRef.current = new Audio('/sounds/start-listening.mp3');
       stopSoundRef.current = new Audio('/sounds/stop-listening.mp3');
     } catch (e) {
-      console.error("Error initializing audio files. Ensure /sounds/start-listening.mp3 and /sounds/stop-listening.mp3 exist in public folder.", e);
+      // console.error("Error initializing audio files. Ensure /sounds/start-listening.mp3 and /sounds/stop-listening.mp3 exist in public folder.", e);
       toast({title: "Audio Error", description: "Could not load listening sound effects. Please ensure files exist in /public/sounds/.", variant: "destructive", duration: 7000});
     }
 
@@ -260,6 +259,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         description = `An unexpected speech error occurred: ${event.error}. Please try again.`;
       }
 
+
       if (event.error !== 'no-speech') {
         speakText(description);
       }
@@ -304,7 +304,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       try {
         recognition.start();
       } catch (error) {
-        console.error("Error starting recognition:", error);
+        // console.error("Error starting recognition:", error);
         let msg = "Could not start voice recognition.";
         if ((error as Error).name === 'InvalidStateError') {
             msg = "Recognition already active or ending. Please wait a moment and try again.";
@@ -342,7 +342,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       }
       logHistory({ ...historyBase, actionType: actionTypeForHistory });
     } catch (error) {
-      console.error("Error submitting email form:", error);
+      // console.error("Error submitting email form:", error);
       const errorMsg = "Failed to generate email draft.";
       speakText(errorMsg);
       toast({ title: "Submission Error", description: errorMsg, variant: "destructive" });
@@ -358,7 +358,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       toast({ title: "Content Copied", description: "Document content copied to clipboard!" });
       speakText("Content copied to clipboard.");
     }).catch(err => {
-      console.error("Failed to copy text: ", err);
+      // console.error("Failed to copy text: ", err);
       toast({ title: "Copy Failed", description: "Could not copy content to clipboard.", variant: "destructive" });
       speakText("Failed to copy content.");
     });
@@ -382,7 +382,7 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
       toast({ title: "Image Download Started", description: `Downloading ${filename}` });
       speakText("Image download started.");
     } catch (error) {
-      console.error("Failed to download image: ", error);
+      // console.error("Failed to download image: ", error);
       toast({ title: "Download Failed", description: "Could not initiate image download.", variant: "destructive" });
       speakText("Failed to download image.");
     }
@@ -535,7 +535,18 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
   };
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center p-4 bg-background font-body">
+    <div className="h-screen w-screen flex flex-col items-center justify-center p-4 bg-background font-body relative">
+      <a
+        href="https://github.com/anuragpatki/Jarvis-AI"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed top-4 right-4 text-sm text-primary hover:text-accent underline flex items-center gap-1 z-50"
+        title="GitHub Repository"
+      >
+        <Github className="h-4 w-4" />
+        GitHub Repo
+      </a>
+
        <SidebarTrigger
         onClick={toggleSidebar}
         className={`fixed top-4 z-50 transition-transform duration-300 ease-in-out
@@ -545,8 +556,8 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
         {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </SidebarTrigger>
 
-      <div className="w-full max-w-3xl mx-auto">
-        <div className="flex flex-col items-center space-y-6">
+      <div className="w-full max-w-3xl mx-auto flex-grow flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center space-y-6 w-full">
 
           <Button
             asChild
@@ -640,3 +651,4 @@ export default function JarvisPage({ searchParams }: JarvisPageProps) {
     </div>
   );
 }
+
